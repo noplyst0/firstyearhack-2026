@@ -6,7 +6,7 @@ let room = sessionStorage.getItem(storageKey) || "";
 let phase = "welcome", players = [], currentRound = 0;
 let totalRounds = Number(sessionStorage.getItem(storageKey + "-rounds")) || 3;
 let replayRequested = false;
-let timer, startTimeout, snowflake = false;
+let timer, startTimeout, roomViewTimer, snowflake = false;
 let podiumTimers = [];
 function clearPodiumTimers() {
   for (const id of podiumTimers) clearTimeout(id);
@@ -17,6 +17,8 @@ function screen(active) {
   reveal.stop();
   clearInterval(timer);
   clearTimeout(startTimeout);
+  clearTimeout(roomViewTimer);
+  roomViewTimer = null;
   clearPodiumTimers();
   startTimeout = null;
   phase = active;
@@ -113,8 +115,44 @@ function createRoom(reclaim) {
 }
 byId("create").onclick = () => { sounds.unlock(); createRoom(Boolean(room)); };
 byId("bots").onclick = () => send("host:bots", { count:20 });
+function enterBrowserFullscreen() {
+  try {
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el?.requestFullscreen) {
+      const p = el.requestFullscreen();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }
+  } catch {}
+}
+function toggleBrowserFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      const p = document.exitFullscreen?.();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } else {
+      enterBrowserFullscreen();
+    }
+  } catch {}
+}
+const fsBtn = byId("fullscreen");
+if (fsBtn) {
+  if (!document.documentElement?.requestFullscreen) {
+    fsBtn.hidden = true;
+  } else {
+    const syncFsBtn = () => {
+      const active = Boolean(document.fullscreenElement);
+      fsBtn.textContent = active ? "✕ Exit full" : "⛶ Fullscreen";
+      fsBtn.setAttribute("aria-pressed", String(active));
+    };
+    fsBtn.onclick = toggleBrowserFullscreen;
+    document.addEventListener("fullscreenchange", syncFsBtn);
+    syncFsBtn();
+  }
+}
+
 byId("start").onclick = () => {
   sounds.unlock();
+  enterBrowserFullscreen();
   totalRounds = Number(byId("rounds").value);
   sessionStorage.removeItem(storageKey + "-clock");
   startTimeout = setTimeout(() => {
@@ -234,7 +272,11 @@ function textNode(tag, value) {
   return node;
 }
 const percentage = value => Number(value).toFixed(1) + "%";
-let result, featured, comments, percentiles, roomViewData;
+let result, featured, comments, percentiles, roomViewData, roomViewAutoShown = false;
+const ROOM_VIEW_AUTO_MS = 5500;
+function hasRoomViewData() {
+  return Boolean(roomViewData && (roomViewData.heat?.length || roomViewData.crowd?.path?.length));
+}
 
 function roomViewHeadline() {
   const validReal = (result?.results || []).filter(p => !p.isBot && p.valid);
@@ -280,20 +322,44 @@ function updateRoomViewUI() {
   reveal.renderRoomView(byId("room-view-svg"), result, roomViewData);
 }
 
-function openRoomView() {
-  if (!roomViewData || !(roomViewData.heat?.length || roomViewData.crowd?.path?.length)) return;
+function openRoomView(autoReturn = false) {
+  if (!hasRoomViewData()) return;
   screen("room-view-screen");
   updateRoomViewUI();
+  const bar = byId("room-view-progress");
+  if (autoReturn) {
+    roomViewAutoShown = true;
+    if (bar) {
+      bar.hidden = false;
+      bar.style.setProperty("--rv-ms", ROOM_VIEW_AUTO_MS + "ms");
+      const fill = bar.firstElementChild;
+      if (fill) {
+        fill.style.animation = "none";
+        void fill.offsetWidth;
+        fill.style.animation = "";
+      }
+    }
+    roomViewTimer = setTimeout(() => {
+      roomViewTimer = null;
+      closeRoomView();
+    }, ROOM_VIEW_AUTO_MS);
+  } else if (bar) {
+    bar.hidden = true;
+  }
 }
 function closeRoomView() {
+  clearTimeout(roomViewTimer);
+  roomViewTimer = null;
+  const bar = byId("room-view-progress");
+  if (bar) bar.hidden = true;
   if (phase !== "room-view-screen") return;
   screen("results");
   showStandings();
   updateRoomViewUI();
 }
-byId("room-view-btn").onclick = openRoomView;
-byId("room-view-open").onclick = e => { e.stopPropagation(); openRoomView(); };
-byId("room-view-teaser").onclick = openRoomView;
+byId("room-view-btn").onclick = () => openRoomView(false);
+byId("room-view-open").onclick = e => { e.stopPropagation(); openRoomView(false); };
+byId("room-view-teaser").onclick = () => openRoomView(false);
 byId("room-view-back").onclick = closeRoomView;
 byId("room-view-next").onclick = () => send("host:next");
 window.addEventListener("keydown", e => {
@@ -382,6 +448,7 @@ socket?.on("round:results", data => {
   comments = {};
   percentiles = {};
   roomViewData = null;
+  roomViewAutoShown = false;
   featured = null;
   byId("spotlight").classList.remove("winner");
   byId("spotlight").hidden = true;
@@ -415,9 +482,13 @@ socket?.on("round:results", data => {
       byId("score").textContent = byId("quote").textContent = "";
       updateSpotlightGuess(null);
     }
-    screen("results");
     showStandings();
-    updateRoomViewUI();
+    if (hasRoomViewData()) {
+      openRoomView(true);
+    } else {
+      screen("results");
+      updateRoomViewUI();
+    }
   });
 });
 socket?.on("round:extras", data => {
@@ -434,7 +505,14 @@ socket?.on("round:extras", data => {
     };
   }
   if (featured && !byId("spotlight").hidden) byId("quote").textContent = quoteFor(featured);
-  if (phase === "results" || phase === "room-view-screen") {
+  if (phase === "results") {
+    showStandings();
+    if (!roomViewAutoShown && hasRoomViewData()) {
+      openRoomView(true);
+    } else {
+      updateRoomViewUI();
+    }
+  } else if (phase === "room-view-screen") {
     showStandings();
     updateRoomViewUI();
   }
