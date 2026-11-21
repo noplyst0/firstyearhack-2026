@@ -264,7 +264,7 @@
     } else {
       screens.draw.classList.remove('pen-held');
       drawPenTitle.textContent = 'HOLD TO DRAW';
-      drawPenSub.textContent = 'Aim at the shape and trace it';
+      drawPenSub.textContent = 'Move your phone to trace the shape';
     }
   });
 
@@ -740,7 +740,7 @@
     }
 
     drawPenTitle.textContent = 'HOLD TO DRAW';
-    drawPenSub.textContent = 'Aim at the shape and trace it';
+    drawPenSub.textContent = 'Move your phone to trace the shape';
 
     SkyPointer.startDrawPhase();
 
