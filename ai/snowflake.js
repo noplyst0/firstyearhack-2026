@@ -180,14 +180,14 @@ async function percentiles({ shapeId, gameId, round }) {
   return out;
 }
 
-// -> [{ attemptId, pathStrokes }]
+// -> [{ attemptId, pathStrokes, band: 'top' | 'mid' | 'bottom', score }], stratified ~20/60/20 (ghost_pool.sql)
 async function ghostPool({ shapeId, count }) {
   const limit = Math.max(1, Math.min(50, Math.floor(Number(count)) || 20));
   const rows = await query(SQL.ghostPool.replace('{{LIMIT}}', String(limit)), [shapeId]);
   return rows.map((r) => {
     const strokes = [];
     for (const [s, x, y] of parseMaybe(r.PTS)) (strokes[s] ||= []).push([x, y]);
-    return { attemptId: r.ATTEMPT_ID, pathStrokes: strokes.filter(Boolean) };
+    return { attemptId: r.ATTEMPT_ID, pathStrokes: strokes.filter(Boolean), band: r.BAND, score: r.SCORE };
   });
 }
 

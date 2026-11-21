@@ -40,8 +40,9 @@ const show = (v) => console.log('  ' + JSON.stringify(v).slice(0, 400));
     const pct = await timed('percentiles (round 3)', sf.percentiles({ shapeId: 6, gameId, round: 3 }));
     show(`${Object.keys(pct).length} rows, e.g. ${JSON.stringify(Object.entries(pct)[0])}`);
 
-    const ghosts = await timed('ghostPool', sf.ghostPool({ shapeId: 1, count: 5 }));
-    show(`${ghosts.length} ghosts, first has ${ghosts[0]?.pathStrokes.flat().length} points`);
+    const ghosts = await timed('ghostPool (circle, 10)', sf.ghostPool({ shapeId: 1, count: 10 }));
+    const bands = ghosts.reduce((m, g) => ((m[g.band] = (m[g.band] || 0) + 1), m), {});
+    show(`${ghosts.length} ghosts, bands ${JSON.stringify(bands)}, scores ${ghosts.map((g) => Math.round(g.score)).sort((a, b) => a - b).join(',')}, first has ${ghosts[0]?.pathStrokes.flat().length} points`);
 
     if (sf.roomView) {
       const rv = await timed('roomView (round 3)', sf.roomView({ gameId, round: 3 }));
