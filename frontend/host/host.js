@@ -139,6 +139,7 @@ function startRound(data) {
   const strokes = rawStrokes.filter(s => Array.isArray(s) && s.length);
   byId("target").setAttribute("d", strokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + x*100 + " " + y*100).join(" ")).join(" "));
   byId("target").classList.remove("poof");
+  byId("round").classList.remove("urgent");
   byId("practice").hidden = !isPractice;
   byId("memory").hidden = !memory;
   byId("memory").textContent = "✦ MEMORY ROUND · Memorise the shape";
@@ -148,7 +149,7 @@ function startRound(data) {
   const started = prior?.code === room && prior.round === round ? prior.started : Date.now();
   sessionStorage.setItem(key, JSON.stringify({ code:room, round, started, stars }));
   const go = started + (data.countdownMs ?? 3000);
-  let lastCue;
+  let lastCue, lastUrgentSec = null;
   function tick() {
     const now = Date.now();
     const remaining = Math.max(0, go + durationMs - now);
@@ -164,9 +165,21 @@ function startRound(data) {
         byId("memory").textContent = "✦ MEMORY ROUND · Draw from memory";
       }
     }
+    const urgent = !before && remaining > 0 && remaining <= 3000;
+    byId("round").classList.toggle("urgent", urgent);
+    if (urgent) {
+      const secLeft = Math.ceil(remaining / 1000);
+      if (secLeft !== lastUrgentSec) {
+        lastUrgentSec = secLeft;
+        sounds.play("tick");
+      }
+    }
     byId("time").textContent = before || now-go < 700 ? cue : Math.ceil(remaining/1000) + "s";
     byId("timer").value = Math.min(1, remaining/durationMs);
-    if (remaining === 0) clearInterval(timer);
+    if (remaining === 0) {
+      sounds.play("buzzer");
+      clearInterval(timer);
+    }
   }
   timer = setInterval(tick, 75);
   tick();

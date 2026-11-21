@@ -49,6 +49,10 @@ select { padding:.25em; font-weight:900; border:2px solid; }
 #memory, .banner-practice { background:var(--pink); border:4px solid var(--ink); border-radius:14px; padding:.45em .8em; margin-bottom:.75rem; font-weight:900; text-align:center; font-size:clamp(1.2rem,2.1vw,2.6rem); }
 .banner-practice { background:var(--acid); }
 #timer { display:block; width:100%; height:1.2rem; margin-top:1rem; accent-color:#6742c7; }
+#round.urgent #time { background:#ff476f; color:white; animation:urgent-pulse .42s ease-in-out infinite alternate; }
+#round.urgent #timer { accent-color:#ff476f; }
+#round.urgent .stage { border-color:#ff476f; box-shadow:0 0 0 4px #ff476f, 8px 8px var(--ink); }
+@keyframes urgent-pulse { from { transform:scale(1); } to { transform:scale(1.1); } }
 .poof { opacity:0; filter:blur(5px); transition:opacity .16s, filter .16s; }
 .judging { background:var(--lilac); padding:8vh 4vw; text-align:center; }
 .lobby-panels { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; align-items:stretch; }
