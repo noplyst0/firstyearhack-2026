@@ -49,15 +49,16 @@ function snowflakeShape() {
   return strokes;
 }
 
-// Smiley: face circle, two small eye circles, smile arc = 4 strokes
+// Smiley: face circle, two big eye circles, wide smile arc = 4 strokes.
+// Eyes r 0.1 and a 164-degree smile r 0.3: smaller features read as "a spiral" under noise (backend test 6).
 function smileyShape() {
   const circ = (cx, cy, r, n) => Array.from({ length: n }, (_, i) => {
     const t = (TAU * i) / (n - 1); return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
   });
   const mouth = Array.from({ length: 120 }, (_, i) => {
-    const t = ((25 + (130 * i) / 119) * Math.PI) / 180; return [0.5 + 0.24 * Math.cos(t), 0.5 + 0.24 * Math.sin(t)];
+    const t = ((8 + (164 * i) / 119) * Math.PI) / 180; return [0.5 + 0.3 * Math.cos(t), 0.45 + 0.3 * Math.sin(t)];
   });
-  return [circ(0.5, 0.5, 0.4, RAW), circ(0.36, 0.38, 0.045, 60), circ(0.64, 0.38, 0.045, 60), mouth];
+  return [circ(0.5, 0.5, 0.4, RAW), circ(0.34, 0.35, 0.1, 120), circ(0.66, 0.35, 0.1, 120), mouth];
 }
 
 const ellipse = (rx, ry) => closed((t) => [0.5 + rx * Math.cos(t), 0.5 + ry * Math.sin(t)]);
