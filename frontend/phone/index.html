@@ -30,7 +30,29 @@
     <section id="screen-join" class="screen">
       <div class="brand-header">
         <h1 class="brand-logo">SKYSKETCH</h1>
-        <p class="brand-tagline">Your phone is the air brush</p>
+      </div>
+
+      <!-- Flashlight explanation + beam diagram on Join screen -->
+      <div class="flashlight-guide">
+        <svg class="beam-diagram" viewBox="0 0 120 56" width="110" height="52" aria-hidden="true">
+          <defs>
+            <linearGradient id="beamGradJoin" x1="0%" y1="50%" x2="100%" y2="50%">
+              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.7" />
+              <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.06" />
+            </linearGradient>
+          </defs>
+          <!-- Phone silhouette -->
+          <rect x="6" y="14" width="16" height="28" rx="3" fill="#121827" stroke="#00f0ff" stroke-width="2" />
+          <circle cx="14" cy="37" r="1.5" fill="#00f0ff" />
+          <!-- Light beam cone -->
+          <polygon points="22,22 96,6 96,50 22,34" fill="url(#beamGradJoin)" />
+          <!-- Big screen target spot -->
+          <rect x="96" y="4" width="18" height="48" rx="3" fill="none" stroke="#3b4d7a" stroke-width="2" />
+          <circle cx="105" cy="28" r="6" fill="#00f0ff" />
+        </svg>
+        <p class="flashlight-text">
+          Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
+        </p>
       </div>
 
       <form id="join-form" class="card join-card" autocomplete="off" novalidate>
@@ -87,8 +109,28 @@
 
       <div id="lobby-motion-warn" class="warn-box hidden" role="alert"></div>
 
+      <!-- Flashlight explanation + beam diagram on Lobby screen -->
+      <div class="flashlight-guide flashlight-guide-compact">
+        <svg class="beam-diagram" viewBox="0 0 120 56" width="92" height="44" aria-hidden="true">
+          <defs>
+            <linearGradient id="beamGradLobby" x1="0%" y1="50%" x2="100%" y2="50%">
+              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.7" />
+              <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.06" />
+            </linearGradient>
+          </defs>
+          <rect x="6" y="14" width="16" height="28" rx="3" fill="#121827" stroke="#00f0ff" stroke-width="2" />
+          <circle cx="14" cy="37" r="1.5" fill="#00f0ff" />
+          <polygon points="22,22 96,6 96,50 22,34" fill="url(#beamGradLobby)" />
+          <rect x="96" y="4" width="18" height="48" rx="3" fill="none" stroke="#3b4d7a" stroke-width="2" />
+          <circle cx="105" cy="28" r="6" fill="#00f0ff" />
+        </svg>
+        <p class="flashlight-text">
+          Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
+        </p>
+      </div>
+
       <div class="card test-card">
-        <p class="test-caption">Wave your phone: the dot should follow</p>
+        <p class="test-caption">This is where your flashlight points</p>
         <div id="lobby-test-box" class="test-box">
           <div class="test-crosshair-h"></div>
           <div class="test-crosshair-v"></div>
@@ -98,15 +140,16 @@
           Re-centre
         </button>
       </div>
-
-      <p class="lobby-footer-note">Eyes on the big screen — round starts soon!</p>
     </section>
 
     <!-- Screen 3: Get ready (on round:start) -->
     <section id="screen-ready" class="screen hidden">
       <div class="ready-header">
         <span id="ready-round-pill" class="room-pill">ROUND 1 OF 3</span>
-        <h2 id="ready-shape-title" class="screen-title">CIRCLE</h2>
+        <div id="ready-shape-meta" class="ready-shape-meta">
+          <h2 id="ready-shape-title" class="screen-title">CIRCLE</h2>
+          <span id="ready-difficulty-stars" class="difficulty-stars" aria-label="Difficulty">&#9733;&#9734;&#9734;</span>
+        </div>
       </div>
 
       <div id="memory-banner" class="memory-banner hidden">
@@ -114,14 +157,28 @@
       </div>
 
       <div id="ready-thumb-wrap" class="thumb-wrap">
-        <canvas id="ready-shape-canvas" width="260" height="260"></canvas>
+        <canvas id="ready-shape-canvas" width="240" height="240"></canvas>
       </div>
 
-      <ul class="instructions-list">
-        <li>Hold your phone up like a camera.</li>
-        <li>Point it at the screen.</li>
-        <li>Hold your thumb down to draw. Lift it to move without drawing.</li>
-      </ul>
+      <!-- Flashlight explanation + beam diagram on Get-ready screen -->
+      <div class="flashlight-guide flashlight-guide-compact">
+        <svg class="beam-diagram" viewBox="0 0 120 56" width="92" height="44" aria-hidden="true">
+          <defs>
+            <linearGradient id="beamGradReady" x1="0%" y1="50%" x2="100%" y2="50%">
+              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.7" />
+              <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.06" />
+            </linearGradient>
+          </defs>
+          <rect x="6" y="14" width="16" height="28" rx="3" fill="#121827" stroke="#00f0ff" stroke-width="2" />
+          <circle cx="14" cy="37" r="1.5" fill="#00f0ff" />
+          <polygon points="22,22 96,6 96,50 22,34" fill="url(#beamGradReady)" />
+          <rect x="96" y="4" width="18" height="48" rx="3" fill="none" stroke="#3b4d7a" stroke-width="2" />
+          <circle cx="105" cy="28" r="6" fill="#00f0ff" />
+        </svg>
+        <p class="flashlight-text">
+          Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
+        </p>
+      </div>
 
       <div class="countdown-box">
         <span id="ready-countdown" class="countdown-number">3</span>
@@ -157,11 +214,12 @@
           <div class="ring-inner">
             <span id="draw-time-left" class="draw-timer">10s</span>
             <span id="draw-shape-hint" class="draw-shape-label">CIRCLE</span>
+            <span id="draw-difficulty-stars" class="difficulty-stars difficulty-stars-sm">&#9733;&#9734;&#9734;</span>
           </div>
         </div>
 
         <div id="draw-pen-title" class="draw-cta">HOLD TO DRAW</div>
-        <p id="draw-pen-sub" class="draw-sub">Press &amp; hold anywhere on screen</p>
+        <p id="draw-pen-sub" class="draw-sub">Hold thumb down where your flashlight shines</p>
       </div>
     </section>
 

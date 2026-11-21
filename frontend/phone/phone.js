@@ -42,7 +42,9 @@
 
   // Screen 3: Get ready
   const readyRoundPill = document.getElementById('ready-round-pill');
+  const readyShapeMeta = document.getElementById('ready-shape-meta');
   const readyShapeTitle = document.getElementById('ready-shape-title');
+  const readyDifficultyStars = document.getElementById('ready-difficulty-stars');
   const memoryBanner = document.getElementById('memory-banner');
   const readyThumbWrap = document.getElementById('ready-thumb-wrap');
   const readyShapeCanvas = document.getElementById('ready-shape-canvas');
@@ -55,6 +57,7 @@
   const drawProgressCircle = document.getElementById('draw-progress-circle');
   const drawTimeLeft = document.getElementById('draw-time-left');
   const drawShapeHint = document.getElementById('draw-shape-hint');
+  const drawDifficultyStars = document.getElementById('draw-difficulty-stars');
   const drawPenTitle = document.getElementById('draw-pen-title');
   const drawPenSub = document.getElementById('draw-pen-sub');
 
@@ -66,7 +69,6 @@
   const resRoundLabel = document.getElementById('res-round-label');
   const resRank = document.getElementById('res-rank');
   const resScore = document.getElementById('res-score');
-  const resBarsWrap = document.getElementById('res-bars-wrap');
   const valOnline = document.getElementById('val-online');
   const barOnline = document.getElementById('bar-online');
   const valCoverage = document.getElementById('val-coverage');
@@ -98,6 +100,7 @@
   let activeRound = 0;
   let activeShapeId = null;
   let activeShapeName = 'shape';
+  let activeDifficulty = 1;
   let activeTargetStrokes = [];
   let isMemoryRound = false;
   let roundSubmitted = false;
@@ -202,11 +205,11 @@
     if (isDown) {
       screens.draw.classList.add('pen-held');
       drawPenTitle.textContent = 'DRAWING...';
-      drawPenSub.textContent = 'Lift thumb to move without drawing';
+      drawPenSub.textContent = 'Move your whole arm · Lift thumb to stop';
     } else {
       screens.draw.classList.remove('pen-held');
       drawPenTitle.textContent = 'HOLD TO DRAW';
-      drawPenSub.textContent = 'Press & hold anywhere on screen';
+      drawPenSub.textContent = 'Hold thumb down where your flashlight shines';
     }
   });
 
@@ -257,6 +260,11 @@
       return 'Enter a valid name';
     }
     return errCode || 'Could not join room';
+  }
+
+  function formatDifficultyStars(difficulty) {
+    const d = Math.max(1, Math.min(3, Number(difficulty) || 1));
+    return '★'.repeat(d) + '☆'.repeat(3 - d);
   }
 
   // --- Session Storage ---
@@ -418,6 +426,7 @@
     const totalRounds = payload.totalRounds || 3;
     activeShapeId = payload.shapeId;
     activeShapeName = payload.shapeName || String(payload.shapeId || 'shape');
+    activeDifficulty = Number(payload.difficulty) || 1;
     isMemoryRound = Boolean(payload.memory);
     roundSubmitted = false;
 
@@ -439,6 +448,13 @@
 
     readyRoundPill.textContent = `ROUND ${activeRound} OF ${totalRounds}`;
     readyShapeTitle.textContent = activeShapeName.toUpperCase();
+    readyDifficultyStars.textContent = formatDifficultyStars(activeDifficulty);
+
+    // Show shape name, difficulty stars, and thumbnail during countdown
+    readyShapeMeta.classList.remove('hidden');
+    readyShapeTitle.classList.remove('hidden');
+    readyDifficultyStars.classList.remove('hidden');
+    readyThumbWrap.classList.remove('hidden');
 
     if (isMemoryRound) {
       memoryBanner.classList.remove('hidden');
@@ -446,7 +462,6 @@
       memoryBanner.classList.add('hidden');
     }
 
-    readyThumbWrap.classList.remove('hidden');
     drawShapeThumbnail(readyCtx, readyShapeCanvas, activeTargetStrokes);
 
     showScreen('ready');
@@ -471,8 +486,12 @@
         countdownRafId = requestAnimationFrame(tickCountdown);
       } else {
         readyCountdown.textContent = 'GO!';
+        // Memory round: at GO, hide the shape name, difficulty stars, and thumbnail
         if (isMemoryRound) {
           readyThumbWrap.classList.add('hidden');
+          readyShapeMeta.classList.add('hidden');
+          readyShapeTitle.classList.add('hidden');
+          readyDifficultyStars.classList.add('hidden');
         }
         if (!calStarted) {
           SkyPointer.beginCalibrationWindow();
@@ -518,9 +537,20 @@
   function beginDrawScreen(durationMs) {
     showScreen('draw');
     screens.draw.classList.remove('pen-held');
-    drawShapeHint.textContent = isMemoryRound ? 'MEMORY ROUND' : activeShapeName.toUpperCase();
+
+    // Memory round: after GO, hide the shape name and difficulty stars too
+    if (isMemoryRound) {
+      drawShapeHint.classList.add('hidden');
+      drawDifficultyStars.classList.add('hidden');
+    } else {
+      drawShapeHint.textContent = activeShapeName.toUpperCase();
+      drawDifficultyStars.textContent = formatDifficultyStars(activeDifficulty);
+      drawShapeHint.classList.remove('hidden');
+      drawDifficultyStars.classList.remove('hidden');
+    }
+
     drawPenTitle.textContent = 'HOLD TO DRAW';
-    drawPenSub.textContent = 'Press & hold anywhere on screen';
+    drawPenSub.textContent = 'Hold thumb down where your flashlight shines';
 
     SkyPointer.startDrawPhase();
 
