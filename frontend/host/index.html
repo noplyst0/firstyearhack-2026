@@ -55,6 +55,7 @@
     </section>
     <section id="round" hidden>
       <div class="row"><h2 id="round-title"></h2><strong id="time" aria-label="Time remaining"></strong></div>
+      <div id="practice" class="banner-practice" hidden>✦ PRACTICE ROUND · Live line on your phone · Doesn’t count for points</div>
       <div id="memory" hidden>✦ Memory round · Memorise the shape</div>
       <div class="stage"><svg viewBox="-8 -8 116 116" role="img" aria-labelledby="shape-label">
         <title id="shape-label">Target shape</title><path id="target" />
@@ -70,18 +71,43 @@
         <svg id="overlay" viewBox="-250 -250 500 500" role="img" aria-label="Drawings over the target"></svg>
         <div id="confetti" aria-hidden="true"></div>
       </div>
-      <div id="spotlight" class="card"><strong id="performer"></strong><span id="score"></span><p id="quote"></p></div>
+      <div id="spotlight" class="card"><strong id="performer"></strong><span id="score"></span><div id="guess-pill" class="guess-pill" hidden></div><p id="quote"></p></div>
     </section>
     <section id="results" hidden>
-      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><button id="next">Next round →</button></div>
+      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><div class="controls"><button id="room-view-btn" hidden>❄ Room View</button><button id="next">Next round →</button></div></div>
+      <div id="practice-results-note" class="banner-practice" hidden>✦ Practice round · Scores don’t count — Round 1 starts next!</div>
+      <div id="room-view" class="card room-view" hidden>
+        <div class="room-view-head">
+          <h2>❄ Room View · Where the room went</h2>
+          <p id="room-view-headline" class="room-view-headline"></p>
+        </div>
+        <div class="stage room-view-stage">
+          <svg id="room-view-svg" viewBox="-250 -250 500 500" role="img" aria-label="Room heatmap and crowd average drawing"></svg>
+        </div>
+        <div class="room-view-legend">
+          <span><i class="swatch swatch-hit"></i>Everyone hit</span>
+          <span><i class="swatch swatch-miss"></i>Everyone missed</span>
+          <span><i class="swatch swatch-crowd"></i>Crowd average line</span>
+        </div>
+        <p id="room-view-verdict" class="room-view-verdict"></p>
+      </div>
       <div id="rankings"><h2>Round standings</h2><ol id="rank-list"></ol></div>
       <p id="ghost-summary"></p>
     </section>
     <section id="final" hidden>
-      <div class="row"><h2>Final standings</h2><button id="again">Play again ↻</button></div>
-      <div id="podium"></div>
-      <div class="final-grid"><div><h2>Leaderboard</h2><ol id="leaders"></ol></div>
-        <div class="card stats"><h2 id="stats-title">Drawing stats</h2><dl id="stats"></dl></div></div>
+      <div class="row"><h2>Final standings</h2><div class="controls"><button id="skip-podium" hidden>Skip reveal →</button><button id="again">Play again ↻</button></div></div>
+      <div id="podium-stage" class="podium-stage">
+        <div id="final-confetti" class="confetti-layer" aria-hidden="true"></div>
+        <p id="podium-banner" class="podium-banner" aria-live="polite"></p>
+        <div id="podium"></div>
+      </div>
+      <div id="final-grid" class="final-grid"><div><h2>Leaderboard</h2><ol id="leaders"></ol></div>
+        <div class="card stats">
+          <h2 id="stats-title">Drawing stats</h2>
+          <div id="stats-awards" class="stats-awards"></div>
+          <div id="stats-shapes" class="stats-shapes"></div>
+          <dl id="stats"></dl>
+        </div></div>
     </section>
     <p id="notice" role="status"></p>
   </main>

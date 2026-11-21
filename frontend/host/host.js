@@ -7,11 +7,17 @@ let phase = "welcome", players = [], currentRound = 0;
 let totalRounds = Number(sessionStorage.getItem(storageKey + "-rounds")) || 3;
 let replayRequested = false;
 let timer, startTimeout, snowflake = false;
+let podiumTimers = [];
+function clearPodiumTimers() {
+  for (const id of podiumTimers) clearTimeout(id);
+  podiumTimers = [];
+}
 
 function screen(active) {
   reveal.stop();
   clearInterval(timer);
   clearTimeout(startTimeout);
+  clearPodiumTimers();
   startTimeout = null;
   phase = active;
   document.body.classList.toggle("in-reveal", active === "drawing-reveal");
@@ -117,17 +123,24 @@ byId("start").onclick = () => {
 };
 function startRound(data) {
   const { round, durationMs, memory } = data;
+  const isPractice = Boolean(data.practice || round === 0);
   screen("round");
   currentRound = round;
   totalRounds = data.totalRounds || totalRounds;
   sessionStorage.setItem(storageKey + "-rounds", totalRounds);
   const name = data.shapeName || data.shapeId;
   const stars = "★".repeat(Math.max(0, Math.min(5, Number(data.difficulty) || 0)));
-  byId("round-title").textContent = ["Round " + round + " of " + totalRounds, name, stars].filter(Boolean).join(" · ");
+  const roundLabel = isPractice ? "Practice round" : "Round " + round + " of " + totalRounds;
+  byId("round-title").textContent = [roundLabel, name, stars].filter(Boolean).join(" · ");
   byId("shape-label").textContent = name;
-  const strokes = data.targetStrokes || [data.targetPoints];
+  const rawStrokes = Array.isArray(data.targetStrokes) && data.targetStrokes.length
+    ? data.targetStrokes
+    : data.targetPoints ? [data.targetPoints] : [];
+  const strokes = rawStrokes.filter(s => Array.isArray(s) && s.length);
   byId("target").setAttribute("d", strokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + x*100 + " " + y*100).join(" ")).join(" "));
   byId("target").classList.remove("poof");
+  byId("round").classList.remove("urgent");
+  byId("practice").hidden = !isPractice;
   byId("memory").hidden = !memory;
   byId("memory").textContent = "✦ MEMORY ROUND · Memorise the shape";
   byId("progress").textContent = "0 / " + players.filter(p => !p.isBot).length + " drawings in";
@@ -136,7 +149,7 @@ function startRound(data) {
   const started = prior?.code === room && prior.round === round ? prior.started : Date.now();
   sessionStorage.setItem(key, JSON.stringify({ code:room, round, started, stars }));
   const go = started + (data.countdownMs ?? 3000);
-  let lastCue;
+  let lastCue, lastUrgentSec = null;
   function tick() {
     const now = Date.now();
     const remaining = Math.max(0, go + durationMs - now);
@@ -147,14 +160,26 @@ function startRound(data) {
       lastCue = cue;
       if (!before && memory) {
         byId("target").classList.add("poof");
-        byId("round-title").textContent = "Round " + round + " of " + totalRounds;
+        byId("round-title").textContent = roundLabel;
         byId("shape-label").textContent = "Hidden memory target";
         byId("memory").textContent = "✦ MEMORY ROUND · Draw from memory";
       }
     }
+    const urgent = !before && remaining > 0 && remaining <= 3000;
+    byId("round").classList.toggle("urgent", urgent);
+    if (urgent) {
+      const secLeft = Math.ceil(remaining / 1000);
+      if (secLeft !== lastUrgentSec) {
+        lastUrgentSec = secLeft;
+        sounds.play("tick");
+      }
+    }
     byId("time").textContent = before || now-go < 700 ? cue : Math.ceil(remaining/1000) + "s";
     byId("timer").value = Math.min(1, remaining/durationMs);
-    if (remaining === 0) clearInterval(timer);
+    if (remaining === 0) {
+      sounds.play("buzzer");
+      clearInterval(timer);
+    }
   }
   timer = setInterval(tick, 75);
   tick();
@@ -205,7 +230,51 @@ function textNode(tag, value) {
   return node;
 }
 const percentage = value => Number(value).toFixed(1) + "%";
-let result, featured, comments, percentiles;
+let result, featured, comments, percentiles, roomViewData, roomViewFocused = false;
+
+function updateRoomViewUI() {
+  const panel = byId("room-view");
+  const btn = byId("room-view-btn");
+  const hasData = Boolean(roomViewData && (roomViewData.heat?.length || roomViewData.crowd?.path?.length));
+  btn.hidden = !hasData;
+  if (!hasData) {
+    panel.hidden = true;
+    roomViewFocused = false;
+    byId("results").classList.remove("room-focus");
+    byId("rankings").hidden = false;
+    return;
+  }
+  panel.hidden = false;
+  byId("results").classList.toggle("room-focus", roomViewFocused);
+  byId("rankings").hidden = roomViewFocused;
+  btn.textContent = roomViewFocused ? "← Round standings" : "❄ Room View";
+
+  const validReal = (result?.results || []).filter(p => !p.isBot && p.valid);
+  const computedAlone = validReal.length
+    ? validReal.reduce((sum, p) => sum + Number(p.score || 0), 0) / validReal.length
+    : null;
+  const alone = roomViewData.alone != null && Number.isFinite(Number(roomViewData.alone))
+    ? Number(roomViewData.alone)
+    : computedAlone;
+  const together = roomViewData.crowd?.score != null && Number.isFinite(Number(roomViewData.crowd.score))
+    ? Number(roomViewData.crowd.score)
+    : null;
+
+  const parts = [];
+  if (alone != null) parts.push("Alone: " + percentage(alone));
+  if (together != null) parts.push("Together: " + percentage(together));
+  let headline = parts.join("  ·  ");
+  if (alone != null && together != null && together > alone + 0.5) {
+    headline += "  (+" + (together - alone).toFixed(1) + "%!)";
+  }
+  byId("room-view-headline").textContent = headline || "Collective accuracy heatmap";
+  byId("room-view-verdict").textContent = roomViewData.verdict || "";
+  reveal.renderRoomView(byId("room-view-svg"), result, roomViewData);
+}
+byId("room-view-btn").onclick = () => {
+  roomViewFocused = !roomViewFocused;
+  updateRoomViewUI();
+};
 
 function quoteFor(p) {
   return comments[p.playerId] ?? p.comment ?? "…";
@@ -220,12 +289,14 @@ function meter(label, value) {
   return wrapper;
 }
 function showStandings() {
+  const isPractice = Boolean(result?.practice || result?.round === 0);
   const rows = result.results.filter(p => !p.isBot).slice(0,10).map(p => {
     const row = document.createElement("li");
     const heading = document.createElement("div");
     heading.className = "rank-heading";
     heading.append(textNode("strong", (p.rank ? "#" + p.rank : "—") + "  " + p.name),
-      textNode("b", p.valid ? percentage(p.score) : "No drawing"), textNode("span", "+" + p.roundPoints + " pts"));
+      textNode("b", p.valid ? percentage(p.score) : "No drawing"),
+      textNode("span", isPractice ? "Practice" : "+" + p.roundPoints + " pts"));
     row.append(heading);
     if (p.valid) {
       const meters = document.createElement("div");
@@ -245,47 +316,105 @@ function showStandings() {
   byId("rank-list").replaceChildren(...rows);
   if (featured) byId("quote").textContent = quoteFor(featured);
 }
+function guessInfo(p, res = result) {
+  if (!p?.valid || !p?.guess?.label) return null;
+  const matched = String(p.guess.shapeId) === String(res?.shapeId);
+  const sf = res?.scorer === "snowflake";
+  const text = matched
+    ? (sf ? "❄ Snowflake recognised your " : "✓ Recognised as ") + (res?.shapeName || p.guess.label)
+    : (sf ? "❄ Snowflake thinks you drew " : "Looks like ") + p.guess.label;
+  return { text, matched };
+}
+function updateSpotlightGuess(p) {
+  const pill = byId("guess-pill");
+  if (!pill) return;
+  const info = guessInfo(p);
+  if (!info) {
+    pill.hidden = true;
+    pill.textContent = "";
+    pill.classList.remove("matched");
+    return;
+  }
+  pill.textContent = info.text;
+  pill.classList.toggle("matched", info.matched);
+  pill.hidden = false;
+}
+function formatBestEver(v) {
+  if (v == null) return null;
+  if (typeof v === "object") {
+    if (v.score == null || !Number.isFinite(Number(v.score))) return null;
+    const parts = [percentage(v.score)];
+    if (v.name) parts.push(v.name);
+    if (v.shape) parts.push("(" + v.shape + ")");
+    return parts.join(" · ").replace(" · (", " (");
+  }
+  return Number.isFinite(Number(v)) ? percentage(v) : null;
+}
 socket?.on("round:results", data => {
   screen("drawing-reveal");
   currentRound = data.round;
   result = data;
+  const isPractice = Boolean(data.practice || data.round === 0);
   comments = {};
   percentiles = {};
+  roomViewData = null;
+  roomViewFocused = false;
   featured = null;
   byId("spotlight").classList.remove("winner");
   byId("spotlight").hidden = true;
+  updateSpotlightGuess(null);
+  updateRoomViewUI();
   const clock = JSON.parse(sessionStorage.getItem(storageKey + "-clock") || "null");
   const stars = clock?.code === room && clock.round === data.round ? clock.stars : "";
-  byId("result-title").textContent = ["Round " + data.round, data.shapeName, stars].filter(Boolean).join(" · ");
+  const roundLabel = isPractice ? "Practice round" : "Round " + data.round;
+  byId("result-title").textContent = [roundLabel, data.shapeName, stars].filter(Boolean).join(" · ");
+  byId("practice-results-note").hidden = !isPractice;
   byId("scorer").textContent = data.scorer === "snowflake" ? "Judged by Snowflake in " + (data.judgeMs/1000).toFixed(2) + " s" : "";
-  byId("next").textContent = data.round === totalRounds ? "Final standings →" : "Next round →";
+  byId("next").textContent = isPractice ? "Start Round 1 →" : data.round === totalRounds ? "Final standings →" : "Next round →";
   byId("performer").textContent = "Drawing reveal";
   byId("quote").textContent = byId("score").textContent = "";
   const ghosts = data.results.filter(p => p.isBot);
   byId("ghost-summary").textContent = ghosts.length ? ghosts.length + " ghosts from earlier today · Best ghost " + percentage(Math.max(...ghosts.map(p => p.score))) : "";
   reveal.start(data, (p, count, won) => {
     featured = p;
-    byId("spotlight").hidden = Boolean(p?.valid && !won);
-    byId("spotlight").classList.toggle("winner",won);
-    byId("performer").textContent = p ? (won ? "★ WINNER  " : "") + p.name : count + " drawings";
+    const isPendingWinner = Boolean(p && data.winner && p.playerId === data.winner.playerId && !won);
+    byId("spotlight").hidden = isPendingWinner;
+    byId("spotlight").classList.toggle("winner", won);
+    const winTag = isPractice ? "★ PRACTICE WINNER  " : "★ WINNER  ";
+    byId("performer").textContent = p ? (won ? winTag : "") + p.name : count + " drawings";
     byId("score").textContent = won ? percentage(p.score) : p && !p.valid ? "No drawing" : "";
-    byId("quote").textContent = p ? quoteFor(p) : "";
+    updateSpotlightGuess(isPendingWinner ? null : p);
+    byId("quote").textContent = p && !isPendingWinner ? quoteFor(p) : "";
   }, () => {
     if (!data.winner) {
       featured = null;
       byId("performer").textContent = "No winner this round";
       byId("score").textContent = byId("quote").textContent = "";
+      updateSpotlightGuess(null);
     }
     screen("results");
     showStandings();
+    updateRoomViewUI();
   });
 });
 socket?.on("round:extras", data => {
   if (!["drawing-reveal","results"].includes(phase) || data.round !== currentRound) return;
-  Object.assign(comments, data.comments);
-  Object.assign(percentiles, data.percentiles);
-  if (featured) byId("quote").textContent = quoteFor(featured);
-  if (phase === "results") showStandings();
+  if (data.comments) Object.assign(comments, data.comments);
+  if (data.percentiles) Object.assign(percentiles, data.percentiles);
+  if (data.heat || data.crowd || data.alone != null || data.verdict) {
+    roomViewData = {
+      ...(roomViewData || {}),
+      ...(data.heat ? { heat: data.heat } : {}),
+      ...(data.crowd ? { crowd: data.crowd } : {}),
+      ...(data.alone != null ? { alone: data.alone } : {}),
+      ...(data.verdict ? { verdict: data.verdict } : {}),
+    };
+  }
+  if (featured && !byId("spotlight").hidden) byId("quote").textContent = quoteFor(featured);
+  if (phase === "results") {
+    showStandings();
+    updateRoomViewUI();
+  }
 });
 byId("next").onclick = () => send("host:next");
 byId("again").onclick = () => {
@@ -293,6 +422,199 @@ byId("again").onclick = () => {
   replayRequested = true;
   send("host:again");
 };
+
+const confettiPalette = ["#6ef3ff","#ff9bbf","#acff83","#bba7ff","#ffab74","#ffd65b","#e8ff64","#fa92fe"];
+function burstConfetti(container, count = 60) {
+  if (!container) return;
+  container.replaceChildren(...Array.from({ length: count }, (_, i) => {
+    const bit = document.createElement("i");
+    bit.style.left = ((i * 29 + 7) % 100) + "%";
+    bit.style.background = confettiPalette[i % confettiPalette.length];
+    bit.style.animationDelay = ((i % 10) * 0.065) + "s";
+    return bit;
+  }));
+}
+function makePodiumCard(p, rank, onlyOne) {
+  const place = document.createElement("div");
+  const cls = rank === 1 ? "place--1st" : rank === 2 ? "place--2nd" : "place--3rd";
+  place.className = "place " + cls + (onlyOne ? " place--only" : "");
+  const medal = textNode("small", rank === 1 ? "👑 ★ Champion" : rank === 2 ? "🥈 2nd place" : "🥉 3rd place");
+  medal.className = "medal";
+  const name = textNode("strong", p.name);
+  const pts = textNode("span", p.total + " pts");
+  pts.className = "pts";
+  place.append(medal, name, pts);
+  return place;
+}
+function runKahootPodium(people) {
+  clearPodiumTimers();
+  const podium = byId("podium");
+  const banner = byId("podium-banner");
+  const confetti = byId("final-confetti");
+  const grid = byId("final-grid");
+  const skipBtn = byId("skip-podium");
+  confetti.replaceChildren();
+  banner.classList.remove("suspense");
+
+  if (!people.length) {
+    podium.replaceChildren();
+    banner.textContent = "Thanks for playing!";
+    grid.hidden = false;
+    skipBtn.hidden = true;
+    return;
+  }
+
+  const onlyOne = people.length === 1;
+  const slots = [];
+  const card1 = makePodiumCard(people[0], 1, onlyOne);
+  const card2 = people[1] ? makePodiumCard(people[1], 2, false) : null;
+  const card3 = people[2] ? makePodiumCard(people[2], 3, false) : null;
+  if (card2) slots.push(card2);
+  slots.push(card1);
+  if (card3) slots.push(card3);
+  podium.replaceChildren(...slots);
+
+  const revealAllNow = () => {
+    clearPodiumTimers();
+    banner.classList.remove("suspense");
+    card1.classList.remove("suspense");
+    card1.replaceChildren(...makePodiumCard(people[0], 1, onlyOne).childNodes);
+    for (const c of slots) c.classList.add("revealed");
+    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
+    grid.hidden = false;
+    skipBtn.hidden = true;
+  };
+  skipBtn.onclick = revealAllNow;
+
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    revealAllNow();
+    return;
+  }
+
+  grid.hidden = true;
+  skipBtn.hidden = false;
+  banner.textContent = "✦ FINAL PODIUM ✦";
+
+  let t = 550;
+  const schedule = (delay, fn) => { podiumTimers.push(setTimeout(fn, delay)); };
+
+  if (card3) {
+    schedule(t, () => {
+      banner.textContent = "🥉 3RD PLACE… " + people[2].name + "!";
+      card3.classList.add("revealed");
+      sounds.play("podium");
+    });
+    t += 1550;
+  }
+  if (card2) {
+    schedule(t, () => {
+      banner.textContent = "🥈 2ND PLACE… " + people[1].name + "!";
+      card2.classList.add("revealed");
+      sounds.play("podium2");
+    });
+    t += 1600;
+  }
+
+  // Drum roll + suspense before revealing #1
+  schedule(t, () => {
+    banner.textContent = "🥁 AND THE CHAMPION IS…";
+    banner.classList.add("suspense");
+    card1.replaceChildren(textNode("small", "★ 1ST PLACE"), textNode("strong", "???"), textNode("span", "…"));
+    card1.classList.add("suspense");
+    sounds.play("drumroll");
+  });
+  t += 1850;
+
+  // Winner burst + confetti
+  schedule(t, () => {
+    banner.classList.remove("suspense");
+    card1.classList.remove("suspense");
+    card1.replaceChildren(...makePodiumCard(people[0], 1, onlyOne).childNodes);
+    card1.classList.add("revealed");
+    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
+    sounds.play("fanfare");
+    burstConfetti(confetti, 64);
+  });
+  t += 1100;
+
+  // Show full leaderboard & Snowflake stats panel
+  schedule(t, () => {
+    grid.hidden = false;
+    skipBtn.hidden = true;
+  });
+}
+
+function makeAwardChip(label, value, tone) {
+  const chip = document.createElement("div");
+  chip.className = "award-chip " + tone;
+  chip.append(textNode("small", label), textNode("strong", value));
+  return chip;
+}
+function formatConfusion(c) {
+  if (!c || !c.shape || !c.label) return null;
+  const pct = c.pct != null && Number.isFinite(Number(c.pct)) ? Math.round(Number(c.pct)) + "% of " : "";
+  const plural = /s$/i.test(c.shape) ? c.shape : c.shape + "s";
+  return pct + plural + " looked like " + c.label;
+}
+function renderAdvancedStats(stats = {}) {
+  const local = stats.source === "local" || (!stats.source && !snowflake);
+  byId("stats-title").textContent = local ? "This game" : "❄ Snowflake analytics";
+
+  const awards = [];
+  const bestText = formatBestEver(stats.bestEver);
+  if (bestText) awards.push(makeAwardChip(local ? "🏆 Best drawing" : "🏆 Best ever", bestText, "award-gold"));
+
+  if (stats.steadiest && stats.steadiest.name) {
+    const tremor = stats.steadiest.tremor != null && Number.isFinite(Number(stats.steadiest.tremor))
+      ? " · tremor " + Number(stats.steadiest.tremor).toFixed(2)
+      : "";
+    awards.push(makeAwardChip("🩺 Steadiest hands", stats.steadiest.name + tremor, "award-acid"));
+  }
+  if (stats.mostImproved && stats.mostImproved.name && Number.isFinite(Number(stats.mostImproved.gain))) {
+    const gain = Number(stats.mostImproved.gain);
+    const sign = gain >= 0 ? "+" : "";
+    awards.push(makeAwardChip("📈 Most improved", stats.mostImproved.name + " (" + sign + gain.toFixed(1) + "%)", "award-lilac"));
+  }
+  const confText = formatConfusion(stats.confusion);
+  if (confText) {
+    awards.push(makeAwardChip("❄ Top confusion", confText, "award-pink"));
+  } else if (stats.commonWrongGuess) {
+    awards.push(makeAwardChip("❄ Most accidental shape", stats.commonWrongGuess, "award-pink"));
+  }
+  byId("stats-awards").replaceChildren(...awards);
+
+  const shapeList = Array.isArray(stats.perShape) && stats.perShape.length
+    ? stats.perShape
+    : Array.isArray(stats.avgByShape) ? stats.avgByShape : [];
+  const shapeRows = shapeList.filter(s => s && s.shape && Number.isFinite(Number(s.avg))).map(s => {
+    const wrap = document.createElement("div");
+    wrap.className = "shape-bar-row";
+    const head = document.createElement("div");
+    head.className = "shape-bar-head";
+    const left = document.createElement("span");
+    left.textContent = s.shape + (s.n != null ? " (" + s.n + ")" : "");
+    if (stats.hardestShape && String(s.shape).toLowerCase() === String(stats.hardestShape).toLowerCase()) {
+      const tag = textNode("span", "Hardest");
+      tag.className = "hardest-tag";
+      left.append(tag);
+    }
+    head.append(left, textNode("strong", percentage(s.avg)));
+    const bar = document.createElement("meter");
+    bar.max = 100;
+    bar.value = Math.max(0, Math.min(100, Number(s.avg)));
+    wrap.append(head, bar);
+    return wrap;
+  });
+  byId("stats-shapes").replaceChildren(...shapeRows);
+
+  const values = [
+    [local ? "Drawings" : "Drawings today", stats.totalAttempts != null ? Number(stats.totalAttempts).toLocaleString() : null],
+    [local ? "Games" : "Games today", stats.totalGames != null ? Number(stats.totalGames).toLocaleString() : null],
+    ["Hardest shape", stats.hardestShape],
+  ];
+  if (!bestText) values.push([local ? "Best score" : "Best ever", "—"]);
+  byId("stats").replaceChildren(...values.flatMap(([label, value]) => [textNode("dt", label), textNode("dd", value ?? "—")]));
+}
 
 socket?.on("game:end", ({ leaderboard, stats = {} }) => {
   screen("final");
@@ -304,20 +626,6 @@ socket?.on("game:end", ({ leaderboard, stats = {} }) => {
     return row;
   }
   byId("leaders").replaceChildren(...people.map(placing));
-  byId("podium").replaceChildren(...people.slice(0,3).map((p,i) => {
-    const place = document.createElement("div");
-    place.className = "place";
-    place.append(textNode("small", ["★ Champion","2nd place","3rd place"][i]),textNode("strong",p.name),textNode("span",p.total + " pts"));
-    return place;
-  }));
-  const local = stats.source === "local" || (!stats.source && !snowflake);
-  byId("stats-title").textContent = local ? "This game" : "Snowflake stats";
-  const values = [
-    [local ? "Drawings" : "Drawings today", stats.totalAttempts],
-    [local ? "Games" : "Games today", stats.totalGames],
-    [local ? "Best score" : "Best ever", stats.bestEver == null ? null : percentage(stats.bestEver)],
-    ["Hardest shape", stats.hardestShape], ["Most common accidental shape", stats.commonWrongGuess],
-    ...(stats.avgByShape || []).map(s => [s.shape + " average", percentage(s.avg)])
-  ];
-  byId("stats").replaceChildren(...values.flatMap(([label,value]) => [textNode("dt",label),textNode("dd",value ?? "—")]));
+  runKahootPodium(people);
+  renderAdvancedStats(stats);
 });
