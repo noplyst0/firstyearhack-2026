@@ -1,4 +1,4 @@
-// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 P1-P5 + Practice Round + Host Theme)
+// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 P1-P5 + Practice + Host Theme + Mini Replay)
 (() => {
   'use strict';
 
@@ -72,6 +72,8 @@
   const resRoundLabel = document.getElementById('res-round-label');
   const resRank = document.getElementById('res-rank');
   const resScore = document.getElementById('res-score');
+  const resReplayCanvas = document.getElementById('res-replay-canvas');
+  const resReplayCtx = resReplayCanvas.getContext('2d');
   const valOnline = document.getElementById('val-online');
   const barOnline = document.getElementById('bar-online');
   const valCoverage = document.getElementById('val-coverage');
@@ -100,6 +102,7 @@
   let lobbyNoMotionTimer = null;
   let countdownRafId = null;
   let drawRafId = null;
+  let replayRafId = null;
   let activeRound = 0;
   let activeShapeId = null;
   let activeShapeName = 'shape';
@@ -464,6 +467,7 @@
   function handleRoundStart(payload) {
     if (countdownRafId) cancelAnimationFrame(countdownRafId);
     if (drawRafId) cancelAnimationFrame(drawRafId);
+    if (replayRafId) cancelAnimationFrame(replayRafId);
 
     isPracticeRound = Boolean(payload.practice || payload.round === 0);
     activeRound = payload.round ?? (isPracticeRound ? 0 : 1);
@@ -748,6 +752,85 @@
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
+  // V3 Item 4: Render & animate player's normalised pathStrokes over targetNormStrokes / targetNorm
+  function animateMiniReplay(targetStrokesNorm, playerStrokesNorm) {
+    if (replayRafId) cancelAnimationFrame(replayRafId);
+
+    const w = resReplayCanvas.width;
+    const h = resReplayCanvas.height;
+    // Normalised coordinates have centre (0,0) and RMS radius 1 (~[-2.3, 2.3] span -> w/5 scale, matching host overlay.js)
+    const scale = w / 5;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    const totalPlayerPts = (playerStrokesNorm || []).reduce(
+      (sum, s) => sum + (Array.isArray(s) ? s.length : 0),
+      0
+    );
+
+    const durationMs = 950;
+    const startTs = performance.now();
+
+    function drawFrame(now) {
+      const progress = Math.min(1, (now - startTs) / durationMs);
+      resReplayCtx.clearRect(0, 0, w, h);
+
+      // 1. Draw normalised target strokes in dashed acid/grey
+      if (Array.isArray(targetStrokesNorm) && targetStrokesNorm.length > 0) {
+        resReplayCtx.save();
+        resReplayCtx.strokeStyle = 'rgba(232, 255, 100, 0.45)';
+        resReplayCtx.lineWidth = 6;
+        resReplayCtx.lineCap = 'round';
+        resReplayCtx.lineJoin = 'round';
+        for (const stroke of targetStrokesNorm) {
+          if (!Array.isArray(stroke) || stroke.length < 2) continue;
+          resReplayCtx.beginPath();
+          for (let i = 0; i < stroke.length; i++) {
+            const px = cx + stroke[i][0] * scale;
+            const py = cy + stroke[i][1] * scale;
+            if (i === 0) resReplayCtx.moveTo(px, py);
+            else resReplayCtx.lineTo(px, py);
+          }
+          resReplayCtx.stroke();
+        }
+        resReplayCtx.restore();
+      }
+
+      // 2. Draw player's normalised pathStrokes up to `progress`
+      if (totalPlayerPts > 0 && Array.isArray(playerStrokesNorm)) {
+        let ptsBudget = Math.max(2, Math.ceil(totalPlayerPts * progress));
+        resReplayCtx.save();
+        resReplayCtx.strokeStyle = '#ffabcc';
+        resReplayCtx.lineWidth = 7;
+        resReplayCtx.lineCap = 'round';
+        resReplayCtx.lineJoin = 'round';
+
+        for (const stroke of playerStrokesNorm) {
+          if (!Array.isArray(stroke) || stroke.length < 2 || ptsBudget <= 0) continue;
+          const count = Math.min(stroke.length, ptsBudget);
+          ptsBudget -= count;
+          if (count < 2) continue;
+
+          resReplayCtx.beginPath();
+          for (let i = 0; i < count; i++) {
+            const px = cx + stroke[i][0] * scale;
+            const py = cy + stroke[i][1] * scale;
+            if (i === 0) resReplayCtx.moveTo(px, py);
+            else resReplayCtx.lineTo(px, py);
+          }
+          resReplayCtx.stroke();
+        }
+        resReplayCtx.restore();
+      }
+
+      if (progress < 1) {
+        replayRafId = requestAnimationFrame(drawFrame);
+      }
+    }
+
+    replayRafId = requestAnimationFrame(drawFrame);
+  }
+
   // Screen 6: Results (on round:results, then round:extras)
   function handleRoundResults(payload) {
     releaseWakeLock();
@@ -769,6 +852,16 @@
       resPracticeBanner.classList.add('hidden');
       resRoundLabel.textContent = `ROUND ${round}`;
     }
+
+    // Extract targetNormStrokes (V3 §2) or fallback to [targetNorm]
+    const targetNormStrokes =
+      Array.isArray(payload.targetNormStrokes) && payload.targetNormStrokes.length > 0
+        ? payload.targetNormStrokes
+        : Array.isArray(payload.targetNorm) && payload.targetNorm.length > 0
+        ? [payload.targetNorm]
+        : [];
+    const myPathStrokes = mine && Array.isArray(mine.pathStrokes) ? mine.pathStrokes : [];
+    animateMiniReplay(targetNormStrokes, myPathStrokes);
 
     const isValid = mine ? mine.valid !== false : false;
     if (!mine || !isValid) {

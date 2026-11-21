@@ -240,7 +240,13 @@
           <span id="res-rank" class="rank-badge">--</span>
         </div>
 
-        <div id="res-score" class="huge-score">--%</div>
+        <!-- Score + Mini Replay Canvas row -->
+        <div class="results-hero-row">
+          <div id="res-score" class="huge-score">--%</div>
+          <div id="res-replay-wrap" class="replay-wrap" aria-label="Your drawing replay over target shape">
+            <canvas id="res-replay-canvas" width="240" height="240"></canvas>
+          </div>
+        </div>
 
         <div id="res-bars-wrap" class="bars-wrap">
           <div class="bar-group">
