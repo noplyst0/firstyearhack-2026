@@ -72,7 +72,6 @@
   // P4: Calibration window samples (1500 ms .. 400 ms before GO)
   let calibratingWindow = false;
   let calSamples = [];
-  let drawPhaseStartTs = 0;
 
   // Fallback rotationRate tracking when deviceorientation is completely absent
   let lastMotionTs = null;
@@ -323,7 +322,7 @@
     attachMotionListeners();
   }
 
-  // Re-centre immediately (used by Lobby Re-centre button)
+  // Re-centre immediately (ONLY called by Lobby Re-centre button and initial lobby entry)
   function recentreNow() {
     if (hasFirstAim) {
       setForwardBasis(latestV);
@@ -334,7 +333,7 @@
     }
   }
 
-  // P4: Collect samples during the 1500 ms .. 400 ms window before GO
+  // Collect samples during the countdown calibration window
   function beginCalibrationWindow() {
     if (calibratingWindow) return;
     calibratingWindow = true;
@@ -347,7 +346,7 @@
     return arr.length % 2 !== 0 ? arr[mid] : 0.5 * (arr[mid - 1] + arr[mid]);
   }
 
-  // P4: Finish calibration using component-wise median of 3D aim vectors (rejects thumb-tap jolts)
+  // Finish calibration in countdown window using component-wise median of 3D aim vectors
   function finishCalibrationWindow() {
     calibratingWindow = false;
     if (calSamples.length > 0) {
@@ -401,21 +400,12 @@
     }
   }
 
+  // Starts a new stroke on pointerdown WITHOUT any re-centre or f0 snapshot:
+  // the stroke begins at the exact (sx, sy) where the dot already was.
   function startStroke() {
     if (!drawPhaseActive) return;
     if (penDown) return;
     if (strokes.length >= MAX_STROKES || totalPointsCount >= MAX_POINTS) return;
-
-    // P4: If first pointerdown happens >1 s after GO with no prior strokes, snapshot f0 so late arm raise starts centered
-    if (
-      !MOUSE_MODE &&
-      strokes.length === 0 &&
-      hasFirstAim &&
-      performance.now() - drawPhaseStartTs > 1000
-    ) {
-      setForwardBasis(latestV);
-      resetFilter(0.5, 0.5);
-    }
 
     penDown = true;
     currentStroke = [];
@@ -436,7 +426,6 @@
 
   function endStroke() {
     if (!penDown) return;
-    // Ensure final lifted point is recorded if the cursor moved since the last sample
     if (currentStroke && currentStroke.length === 1) {
       pushCurrentSample(true);
     } else if (currentStroke && currentStroke.length > 1) {
@@ -460,7 +449,6 @@
     totalPointsCount = 0;
     penDown = false;
     drawPhaseActive = true;
-    drawPhaseStartTs = performance.now();
 
     // A finger already down at GO starts a stroke at GO
     if (activePointers.size > 0) {
