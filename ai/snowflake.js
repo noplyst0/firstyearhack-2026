@@ -190,16 +190,34 @@ async function ghostPool({ shapeId, count }) {
   });
 }
 
-// -> { totalAttempts, totalGames, bestEver, hardestShape, commonWrongGuess, avgByShape: [{ shape, avg, n }] }
-async function gameStats() {
-  const [[h], byShape] = await Promise.all([query(SQL.stats[0]), query(SQL.stats[1])]);
+// gameStats({ gameId? }) -> plan/V3.md contract 4. Any field may be null.
+// { totalAttempts, totalGames, hardestShape, bestEver: { name, score, shape }, steadiest: { name, tremor },
+//   mostImproved: { name, gain }, confusion: { shape, label, pct }, perShape: [{ shape, avg, n }],
+//   commonWrongGuess, avgByShape }   (last two kept for v2 callers)
+// steadiest and mostImproved cover this game when gameId is given, otherwise all time.
+async function gameStats({ gameId = null } = {}) {
+  const g = gameId || null;
+  const [[h], [best], [steady], [improved], [conf], byShape] = await Promise.all([
+    query(SQL.stats[0]),
+    query(SQL.stats[1]),
+    query(SQL.stats[2], [g, g]),
+    query(SQL.stats[3], [g, g]),
+    query(SQL.stats[4]),
+    query(SQL.stats[5]),
+  ]);
+  const perShape = byShape.map((r) => ({ shape: r.SHAPE, avg: r.AVG_SCORE, n: Number(r.N) }));
+  const confusion = conf ? { shape: conf.SHAPE, label: conf.LABEL, pct: Number(conf.PCT) } : null;
   return {
     totalAttempts: Number(h.TOTAL_ATTEMPTS),
     totalGames: Number(h.TOTAL_GAMES),
-    bestEver: h.BEST_EVER,
     hardestShape: h.HARDEST_SHAPE,
-    commonWrongGuess: h.COMMON_WRONG_GUESS,
-    avgByShape: byShape.map((r) => ({ shape: r.SHAPE, avg: r.AVG_SCORE, n: Number(r.N) })),
+    bestEver: best ? { name: best.NAME, score: best.SCORE, shape: best.SHAPE } : null,
+    steadiest: steady ? { name: steady.NAME, tremor: steady.TREMOR } : null,
+    mostImproved: improved ? { name: improved.NAME, gain: improved.GAIN } : null,
+    confusion,
+    perShape,
+    commonWrongGuess: confusion ? confusion.label : null,
+    avgByShape: perShape,
   };
 }
 
