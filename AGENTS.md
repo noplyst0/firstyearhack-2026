@@ -1,6 +1,6 @@
 # FirstYearHack 2026: team plan
 
-Every AI reads this first, plus `git log --oneline -20`. Update it in the same commit when the plan or contract changes.
+Every AI reads this first, then TASKS.md, plus `git log --oneline -20`. Update it in the same commit when the plan or contract changes.
 
 ## Idea
 TBD (fill in once the challenge is announced)
