@@ -3,7 +3,7 @@
 // Login: backend/.env (never committed). Variables: SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER,
 // SNOWFLAKE_PASSWORD or SNOWFLAKE_PRIVATE_KEY_PATH, SNOWFLAKE_ROLE, SNOWFLAKE_WAREHOUSE (SKY_WH),
 // SNOWFLAKE_DATABASE (SKYSKETCH), SNOWFLAKE_SCHEMA (GAME), SNOWFLAKE_MODEL.
-// Stretch functions (saveTarget, roomView, roomVerdict, visionGuess) are not written yet.
+// Not written (AI blocked on trial / out of scope): saveTarget, roomVerdict, visionGuess.
 
 const fs = require('fs');
 const path = require('path');
@@ -24,7 +24,8 @@ const SQL = {
   read: statements(sqlFile('read_round.sql'))[0],
   percentiles: statements(sqlFile('percentiles.sql'))[0],
   ghostPool: statements(sqlFile('ghost_pool.sql'))[0],
-  stats: statements(sqlFile('stats.sql')), // [headline, byShape]
+  stats: statements(sqlFile('stats.sql')), // 6 statements, see stats.sql
+  roomView: statements(sqlFile('room_view.sql'))[0],
 };
 
 let conn = null;
@@ -221,6 +222,18 @@ async function gameStats({ gameId = null } = {}) {
   };
 }
 
+// roomView({ gameId, round }) -> { heat: [256 numbers 0..1, 1 = room missed most], crowd: { path: [[x,y] x256], score },
+//   alone: room average score } or null when the round has no real drawings. Points are normalised (like targetNorm).
+async function roomView({ gameId, round }) {
+  const rows = await query(SQL.roomView, [gameId, round, gameId, round]);
+  if (!rows.length) return null;
+  return {
+    heat: rows.map((r) => (r.HEAT == null ? 0 : Number(r.HEAT))),
+    crowd: { path: rows.map((r) => [r.CX, r.CY]), score: rows[0].CROWD_SCORE },
+    alone: rows[0].ALONE,
+  };
+}
+
 function disconnect() {
   if (!conn) return Promise.resolve();
   const c = conn;
@@ -229,6 +242,6 @@ function disconnect() {
 }
 
 module.exports = {
-  init, ping, saveGame, saveAndScoreRound, comments, percentiles, ghostPool, gameStats,
+  init, ping, saveGame, saveAndScoreRound, comments, percentiles, ghostPool, gameStats, roomView,
   query, disconnect, statements,
 };
