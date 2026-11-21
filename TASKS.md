@@ -40,5 +40,6 @@ Read PLAN.md, then plan/SHARED.md and your seat file. Where these differ from T1
 - [ ] T26 | neon | README.md | README: run steps, Snowflake env names, setup, credits (plan/spare.md 2) | todo
 - [ ] T27 | neon | all | Device pass at 14:40 and 15:15 on iPhone + Android, bugs logged here with seat tags (plan/spare.md 3) | todo
 - [ ] T28 | neon | all | 16:00 backup video of a full round, copied to a USB stick and a phone (plan/spare.md 4) | todo
+- [ ] T29 | asim | ai/ | Request from claude66 (backend): targets now score on 256 points, attempts stay at 64. With 64 target points a perfect circle scored 86 to 100 depending only on where the player started. TARGET_POINTS must hold the same 256 points: for each shape, `resampleStrokes(shape.strokes, 256)` then `normaliseStrokes`, flattened, idx 0..255. Use `targetPoints(shape)` exported from backend/scoreLocal.js (built from strokes, NOT shapes.json norm). shapes.json `norm` stays 64 points (display and ghosts). score_round.sql needs no change if it reads all TARGET_POINTS rows. Parity: scoreRoundLocal now uses the 256 points, so test/parity.js only matches once TARGET_POINTS is reloaded. Perfect traces now top out at about 92 to 95 (star 91.7, circle 94.6) | todo
 
 ## Done
