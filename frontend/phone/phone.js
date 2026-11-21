@@ -58,6 +58,7 @@
   const drawPracticeBanner = document.getElementById('draw-practice-banner');
   const debugDrawCanvas = document.getElementById('debug-draw-canvas');
   const debugDrawCtx = debugDrawCanvas.getContext('2d');
+  const drawTimerBar = document.getElementById('draw-timer-bar');
   const drawProgressCircle = document.getElementById('draw-progress-circle');
   const drawTimeLeft = document.getElementById('draw-time-left');
   const drawShapeHint = document.getElementById('draw-shape-hint');
@@ -186,11 +187,12 @@
   }
   if (SkyPointer.DEBUG_MODE) {
     debugHud.classList.remove('hidden');
-    debugDrawCanvas.classList.remove('hidden');
   }
 
-  drawProgressCircle.style.strokeDasharray = `${RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`;
-  drawProgressCircle.style.strokeDashoffset = '0';
+  if (drawProgressCircle) {
+    drawProgressCircle.style.strokeDasharray = `${RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`;
+    drawProgressCircle.style.strokeDashoffset = '0';
+  }
 
   const urlParams = new URLSearchParams(window.location.search);
   const urlCodeParam = (urlParams.get('code') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
@@ -246,8 +248,8 @@
     });
   }
 
-  // Bind pointer events for hold-to-draw and ?mouse=1 (passing drawPad and debugDrawCanvas so ?mouse=1 uses the same square box)
-  SkyPointer.bindPadEvents(drawPad, lobbyTestBox, debugDrawCanvas);
+  // Whole draw screen is the press-to-draw area (except buttons like I'M DONE); debugDrawCanvas is the square reference box for ?mouse=1
+  SkyPointer.bindPadEvents(screens.draw, lobbyTestBox, debugDrawCanvas);
 
   SkyPointer.onUpdate((st) => {
     // P5: Update ?debug=1 HUD including e.absolute flag
@@ -255,12 +257,8 @@
       debugReadout.textContent = `yaw: ${st.yaw.toFixed(1)}° | pitch: ${st.pitch.toFixed(1)}° | x: ${st.sx.toFixed(2)} | y: ${st.sy.toFixed(2)} | abs:${st.absolute ? 1 : 0}`;
     }
 
-    // V3 §1: Show live line during practice round (or ?debug=1); real rounds stay blind
-    if (currentScreen === 'draw' && shouldShowLiveLine()) {
-      renderDebugDrawCanvas(st);
-    }
-
     if (currentScreen === 'draw') {
+      renderDebugDrawCanvas(st);
       updateDoneButtonState(st);
     }
 
@@ -292,10 +290,12 @@
   SkyPointer.onPenChange((isDown) => {
     if (currentScreen !== 'draw' || roundSubmitted) return;
     if (isDown) {
+      screens.draw.classList.add('pen-held');
       drawPad.classList.add('pen-held');
       drawPenTitle.textContent = 'DRAWING...';
       drawPenSub.textContent = 'Small, steady wrist movements · Lift your thumb to stop';
     } else {
+      screens.draw.classList.remove('pen-held');
       drawPad.classList.remove('pen-held');
       drawPenTitle.textContent = 'HOLD TO DRAW';
       drawPenSub.textContent = 'Move your phone to trace the shape';
@@ -757,20 +757,16 @@
     drawPad.classList.remove('pen-held', 'urgent');
     screens.draw.classList.remove('pen-held', 'urgent');
 
-    // V3 §1: Show practice banner and live line ONLY when practice is true (or ?debug=1); real rounds stay blind
+    // Zone 1: Show practice banner only in practice round
     if (isPracticeRound) {
       drawPracticeBanner.classList.remove('hidden');
     } else {
       drawPracticeBanner.classList.add('hidden');
     }
 
-    if (shouldShowLiveLine()) {
-      debugDrawCanvas.classList.remove('hidden');
-      renderDebugDrawCanvas(SkyPointer.getState());
-    } else {
-      debugDrawCanvas.classList.add('hidden');
-      debugDrawCtx.clearRect(0, 0, debugDrawCanvas.width, debugDrawCanvas.height);
-    }
+    // Zone 2: Square drawing area always visible (dashed target shape; plus live line & dot in practice/?debug=1)
+    debugDrawCanvas.classList.remove('hidden');
+    renderDebugDrawCanvas(SkyPointer.getState());
 
     // Memory round: after GO, hide the shape name and difficulty stars too
     if (isMemoryRound) {
@@ -781,6 +777,13 @@
       drawDifficultyStars.textContent = formatDifficultyStars(activeDifficulty);
       drawShapeHint.classList.remove('hidden');
       drawDifficultyStars.classList.remove('hidden');
+    }
+
+    if (drawTimerBar) {
+      drawTimerBar.style.width = '100%';
+    }
+    if (drawProgressCircle) {
+      drawProgressCircle.style.strokeDashoffset = '0';
     }
 
     drawPenTitle.textContent = 'HOLD TO DRAW';
@@ -797,23 +800,26 @@
       if (roundSubmitted) return;
       const rem = Math.max(0, endTs - now);
       const frac = durationMs > 0 ? rem / durationMs : 0;
-      const offset = RING_CIRCUMFERENCE * (1 - frac);
-      drawProgressCircle.style.strokeDashoffset = `${offset.toFixed(2)}`;
+      if (drawTimerBar) {
+        drawTimerBar.style.width = `${(frac * 100).toFixed(1)}%`;
+      }
+      if (drawProgressCircle) {
+        const offset = RING_CIRCUMFERENCE * (1 - frac);
+        drawProgressCircle.style.strokeDashoffset = `${offset.toFixed(2)}`;
+      }
       const secsLeft = Math.ceil(rem / 1000);
       drawTimeLeft.textContent = `${secsLeft}s`;
 
-      // V3 Item 5: Last-3s vibration & visual urgency pulse
+      // V3 Item 5: Last-3s vibration & visual urgency pulse on the timer bar
       if (rem > 0 && rem <= 3000) {
-        drawPad.classList.add('urgent');
+        screens.draw.classList.add('urgent');
         if (secsLeft !== lastUrgentSec) {
           lastUrgentSec = secsLeft;
           vibratePhone(35);
         }
       }
 
-      if (shouldShowLiveLine()) {
-        renderDebugDrawCanvas(SkyPointer.getState());
-      }
+      renderDebugDrawCanvas(SkyPointer.getState());
 
       if (rem > 0) {
         drawRafId = requestAnimationFrame(tickDraw);
@@ -825,7 +831,7 @@
     drawRafId = requestAnimationFrame(tickDraw);
   }
 
-  // Draws practice/debug target shape, live player strokes, and cursor dot inside a centred SQUARE box (size = min(width, height))
+  // Draws dashed target shape (and in practice/?debug=1, live player strokes & cursor dot) inside a centred SQUARE box (size = min(width, height))
   function renderDebugDrawCanvas(st) {
     const { w, h, size, ox, oy, dpr } = getCentredSquareBox(debugDrawCanvas);
     debugDrawCtx.clearRect(0, 0, w, h);
@@ -851,6 +857,9 @@
       }
       debugDrawCtx.restore();
     }
+
+    // Only draw live line and dot in the practice round (or ?debug=1); real rounds are blind
+    if (!shouldShowLiveLine()) return;
 
     // Recorded player strokes in --pink (#ffabcc)
     debugDrawCtx.save();
@@ -916,6 +925,9 @@
     updateDoneButtonState();
     vibratePhone([40, 50, 40]);
     drawTimeLeft.textContent = '0s';
+    if (drawTimerBar) {
+      drawTimerBar.style.width = '0%';
+    }
     updateSubmittedStatusText();
 
     if (socket && roomCode && playerId) {
