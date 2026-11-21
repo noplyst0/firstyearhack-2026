@@ -123,17 +123,23 @@ byId("start").onclick = () => {
 };
 function startRound(data) {
   const { round, durationMs, memory } = data;
+  const isPractice = Boolean(data.practice || round === 0);
   screen("round");
   currentRound = round;
   totalRounds = data.totalRounds || totalRounds;
   sessionStorage.setItem(storageKey + "-rounds", totalRounds);
   const name = data.shapeName || data.shapeId;
   const stars = "★".repeat(Math.max(0, Math.min(5, Number(data.difficulty) || 0)));
-  byId("round-title").textContent = ["Round " + round + " of " + totalRounds, name, stars].filter(Boolean).join(" · ");
+  const roundLabel = isPractice ? "Practice round" : "Round " + round + " of " + totalRounds;
+  byId("round-title").textContent = [roundLabel, name, stars].filter(Boolean).join(" · ");
   byId("shape-label").textContent = name;
-  const strokes = data.targetStrokes || [data.targetPoints];
+  const rawStrokes = Array.isArray(data.targetStrokes) && data.targetStrokes.length
+    ? data.targetStrokes
+    : data.targetPoints ? [data.targetPoints] : [];
+  const strokes = rawStrokes.filter(s => Array.isArray(s) && s.length);
   byId("target").setAttribute("d", strokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + x*100 + " " + y*100).join(" ")).join(" "));
   byId("target").classList.remove("poof");
+  byId("practice").hidden = !isPractice;
   byId("memory").hidden = !memory;
   byId("memory").textContent = "✦ MEMORY ROUND · Memorise the shape";
   byId("progress").textContent = "0 / " + players.filter(p => !p.isBot).length + " drawings in";
@@ -153,7 +159,7 @@ function startRound(data) {
       lastCue = cue;
       if (!before && memory) {
         byId("target").classList.add("poof");
-        byId("round-title").textContent = "Round " + round + " of " + totalRounds;
+        byId("round-title").textContent = roundLabel;
         byId("shape-label").textContent = "Hidden memory target";
         byId("memory").textContent = "✦ MEMORY ROUND · Draw from memory";
       }
@@ -226,12 +232,14 @@ function meter(label, value) {
   return wrapper;
 }
 function showStandings() {
+  const isPractice = Boolean(result?.practice || result?.round === 0);
   const rows = result.results.filter(p => !p.isBot).slice(0,10).map(p => {
     const row = document.createElement("li");
     const heading = document.createElement("div");
     heading.className = "rank-heading";
     heading.append(textNode("strong", (p.rank ? "#" + p.rank : "—") + "  " + p.name),
-      textNode("b", p.valid ? percentage(p.score) : "No drawing"), textNode("span", "+" + p.roundPoints + " pts"));
+      textNode("b", p.valid ? percentage(p.score) : "No drawing"),
+      textNode("span", isPractice ? "Practice" : "+" + p.roundPoints + " pts"));
     row.append(heading);
     if (p.valid) {
       const meters = document.createElement("div");
@@ -289,6 +297,7 @@ socket?.on("round:results", data => {
   screen("drawing-reveal");
   currentRound = data.round;
   result = data;
+  const isPractice = Boolean(data.practice || data.round === 0);
   comments = {};
   percentiles = {};
   featured = null;
@@ -297,9 +306,11 @@ socket?.on("round:results", data => {
   updateSpotlightGuess(null);
   const clock = JSON.parse(sessionStorage.getItem(storageKey + "-clock") || "null");
   const stars = clock?.code === room && clock.round === data.round ? clock.stars : "";
-  byId("result-title").textContent = ["Round " + data.round, data.shapeName, stars].filter(Boolean).join(" · ");
+  const roundLabel = isPractice ? "Practice round" : "Round " + data.round;
+  byId("result-title").textContent = [roundLabel, data.shapeName, stars].filter(Boolean).join(" · ");
+  byId("practice-results-note").hidden = !isPractice;
   byId("scorer").textContent = data.scorer === "snowflake" ? "Judged by Snowflake in " + (data.judgeMs/1000).toFixed(2) + " s" : "";
-  byId("next").textContent = data.round === totalRounds ? "Final standings →" : "Next round →";
+  byId("next").textContent = isPractice ? "Start Round 1 →" : data.round === totalRounds ? "Final standings →" : "Next round →";
   byId("performer").textContent = "Drawing reveal";
   byId("quote").textContent = byId("score").textContent = "";
   const ghosts = data.results.filter(p => p.isBot);
@@ -309,7 +320,8 @@ socket?.on("round:results", data => {
     const isPendingWinner = Boolean(p && data.winner && p.playerId === data.winner.playerId && !won);
     byId("spotlight").hidden = isPendingWinner;
     byId("spotlight").classList.toggle("winner", won);
-    byId("performer").textContent = p ? (won ? "★ WINNER  " : "") + p.name : count + " drawings";
+    const winTag = isPractice ? "★ PRACTICE WINNER  " : "★ WINNER  ";
+    byId("performer").textContent = p ? (won ? winTag : "") + p.name : count + " drawings";
     byId("score").textContent = won ? percentage(p.score) : p && !p.valid ? "No drawing" : "";
     updateSpotlightGuess(isPendingWinner ? null : p);
     byId("quote").textContent = p && !isPendingWinner ? quoteFor(p) : "";

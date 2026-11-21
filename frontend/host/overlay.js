@@ -10,7 +10,8 @@ const reveal = (() => {
     return node;
   }
   function path(strokes, colour, width) {
-    const d = strokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
+    const clean = (strokes || []).filter(s => Array.isArray(s) && s.length);
+    const d = clean.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
     const line = element("path", { d, stroke:colour, "stroke-width":width, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round", pathLength:1 });
     svg.append(line);
     return line;
@@ -29,7 +30,10 @@ const reveal = (() => {
     cancelAnimationFrame(animation);
     svg.replaceChildren();
     document.getElementById("confetti").replaceChildren();
-    path([data.targetNorm], "#aaa3b4", 5);
+    const targetStrokes = Array.isArray(data.targetNormStrokes) && data.targetNormStrokes.length
+      ? data.targetNormStrokes
+      : data.targetNorm ? [data.targetNorm] : [];
+    path(targetStrokes, "#aaa3b4", 5);
     const ghosts = data.results.filter(p => p.isBot);
     for (const p of ghosts) path(p.pathStrokes || [], "rgba(255,255,255,.2)", 2);
     const real = data.results.filter(p => !p.isBot).reverse();
