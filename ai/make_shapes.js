@@ -58,7 +58,7 @@ function smileyShape() {
   const mouth = Array.from({ length: 120 }, (_, i) => {
     const t = ((8 + (164 * i) / 119) * Math.PI) / 180; return [0.5 + 0.3 * Math.cos(t), 0.45 + 0.3 * Math.sin(t)];
   });
-  return [circ(0.5, 0.5, 0.4, RAW), circ(0.34, 0.35, 0.1, 120), circ(0.66, 0.35, 0.1, 120), mouth];
+  return [circ(0.5, 0.5, 0.4, RAW), circ(0.37, 0.37, 0.035, 60), circ(0.63, 0.37, 0.035, 60), mouth];   // dot eyes
 }
 
 const ellipse = (rx, ry) => closed((t) => [0.5 + rx * Math.cos(t), 0.5 + ry * Math.sin(t)]);

@@ -18,7 +18,7 @@ module.exports = {
     countdownMs: 3000,
     graceMs: 2000, // after the drawing time, before judging
     // auto-advance from results: 8 s + 3.5 s per real player, capped at 90 s (host:next skips it)
-    resultsBaseMs: 8000,
+    resultsBaseMs: 22000,   // winner hold 6 s + room view 5.5 s + ranked list ~8 s + slack
     resultsPerPlayerMs: 3500,
     resultsMaxMs: 90000,
     extrasDelayMs: 400, // local mode: extras a moment after results
