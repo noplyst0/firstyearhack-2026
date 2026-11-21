@@ -46,7 +46,7 @@ Snowflake: copy `.env.example` to `.env` and fill it in. `SNOWFLAKE_ENABLED=0` f
 - `SNOWFLAKE_MODULE` env points sf.js at another module (tests use a mock).
 
 ## V3 (plan/V3.md)
-- Round 0 is practice (circle 10 s): `practice: true` on round:start and round:results, ranks shown, roundPoints 0,
+- Round 0 is practice (circle 15 s): `practice: true` on round:start and round:results, ranks shown, roundPoints 0,
   not stored in data/attempts.jsonl, excluded from local stats. Attempts to Snowflake carry `isPractice` and `playerName`.
 - round:results has `targetNormStrokes` (256 normalised points kept per stroke).
 - round:extras has `heat` (256, 0..1), `crowd { path, score }`, `alone` whenever 2+ valid real drawings: from

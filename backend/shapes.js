@@ -84,14 +84,14 @@ for (const s of library) targetPoints(s);
 const byId = (id) => library.find((s) => s.id === id) || null;
 
 // SHARED §3: 3 rounds circle/triangle/star, 5 rounds add square and heart. Last round is the memory round.
-// V3: index 0 is the practice round (circle, 10 s, no points); real rounds are 1..rounds.
+// V3: index 0 is the practice round (circle, 15 s, no points); real rounds are 1..rounds.
 function roundPlan(rounds) {
   const steps = rounds === 5
     ? [[1, 10000], [2, 12000], [3, 12000], [4, 15000], [5, 15000]]
     : rounds === 2
       ? [[3, 12000], [4, 15000]]   // demo: square, star (after the practice circle)
       : [[1, 10000], [2, 12000], [4, 15000]];
-  return [{ shapeId: 1, durationMs: 10000, practice: true }, ...steps.map(([shapeId, durationMs]) => ({ shapeId, durationMs, practice: false }))];
+  return [{ shapeId: 1, durationMs: 15000, practice: true }, ...steps.map(([shapeId, durationMs]) => ({ shapeId, durationMs, practice: false }))];
 }
 
 module.exports = { library, source, byId, roundPlan, buildInline };

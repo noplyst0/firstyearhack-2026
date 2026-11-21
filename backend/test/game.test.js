@@ -70,7 +70,7 @@ test('join rules, ghosts, 3 rounds, duplicate + missing submit, extras, game end
   assert.ok((await call(host, 'host:start', { code, rounds: 3 })).ok);
   const p0 = await st0;
   assert.strictEqual(p0.round, 0); assert.strictEqual(p0.practice, true); assert.strictEqual(p0.totalRounds, 3);
-  assert.strictEqual(p0.shapeId, 1); assert.strictEqual(p0.durationMs, Math.round(10000 * timing.durationScale)); assert.strictEqual(p0.memory, false);
+  assert.strictEqual(p0.shapeId, 1); assert.strictEqual(p0.durationMs, Math.round(15000 * timing.durationScale)); assert.strictEqual(p0.memory, false);
   await submit(a, code, ja.playerId, 0, circle());
   await submit(b, code, jb.playerId, 0, line());
   await once(host, 'round:judging');
@@ -291,7 +291,7 @@ test('a late submit for the practice round is refused once round 1 starts', asyn
 });
 
 test('host:endRound sends round:stop and judges within 2 s; checkAllIn still ends a round early', async () => {
-  // real 10 s practice round, so only an early end can judge it in time
+  // real 15 s practice round, so only an early end can judge it in time
   const slow = await start({ port: 0, quiet: true, timing: { ...timing, durationScale: 1, countdownMs: 50 } });
   const u = `http://localhost:${slow.port}`;
   const mk = () => { const s = connect(u, { transports: ['websocket'], forceNew: true }); s.q = {}; s.w = {};
