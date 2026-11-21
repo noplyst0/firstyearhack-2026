@@ -43,9 +43,9 @@ Shapes (`ai/shapes.json`): circle (round 1), triangle, star; each 64 points in 0
 ## Who owns what (only edit your own folder)
 | Seat | Account | Folder | Branch |
 |---|---|---|---|
-| Codex (Air) | ChatGPT ...66 | backend/ | codex-backend |
-| Claude Agent (Air) | Claude ...66 | frontend/phone/ | claude-phone |
-| Argon (Air) | Google | frontend/host/ | argon-host |
+| Claude Agent (Air) | Claude ...66 | backend/ | claude-backend |
+| Argon (Air) | Google | frontend/phone/ | argon-phone |
+| Codex (Air) | ChatGPT ...66 | frontend/host/ (visual, low risk) | codex-host |
 | Asim's Claude (Air) | Asim | ai/ (Snowflake SQL, shapes, scoring) | asim-ai |
 | Neon (Air) | Google | spare: polish, bugs, README | neon-misc |
 | Lead (Claude chat) | Claude ...48 | PLAN.md, TASKS.md, pitch/, merges | main |
