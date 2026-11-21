@@ -474,13 +474,18 @@
     };
   }
 
-  // Update pointer coordinates from mouse/touch when ?mouse=1 is enabled
+  // Update pointer coordinates from mouse/touch when ?mouse=1 is enabled.
+  // Maps pointer (clientX, clientY) relative to the centred SQUARE box (size = min(width, height))
+  // inside containerEl so x and y have the exact same scale and match the drawn target shape 1:1.
   function updateMouseCoordsFromEvent(e, containerEl) {
     if (!MOUSE_MODE) return;
     const rect = (containerEl || document.body).getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const nx = (e.clientX - rect.left) / rect.width;
-    const ny = (e.clientY - rect.top) / rect.height;
+    const size = Math.min(rect.width, rect.height);
+    const ox = rect.left + (rect.width - size) / 2;
+    const oy = rect.top + (rect.height - size) / 2;
+    const nx = (e.clientX - ox) / size;
+    const ny = (e.clientY - oy) / size;
     rawX = nx;
     rawY = ny;
     sx = nx;
@@ -492,15 +497,22 @@
     }
   }
 
-  // Bind hold-to-draw pointer tracking to the draw pad
-  function bindPadEvents(drawPadEl, lobbyBoxEl) {
+  // Bind hold-to-draw pointer tracking to the draw pad (using drawCanvasEl when available so ?mouse=1 aligns 1:1)
+  function bindPadEvents(drawPadEl, lobbyBoxEl, drawCanvasEl) {
+    const getDrawRefEl = () => {
+      if (drawCanvasEl && !drawCanvasEl.classList.contains('hidden')) {
+        return drawCanvasEl;
+      }
+      return drawPadEl;
+    };
+
     window.addEventListener('pointerdown', (e) => {
       if (e.target && e.target.closest('button, input, a')) {
         return;
       }
       activePointers.add(e.pointerId);
       if (MOUSE_MODE) {
-        const refEl = drawPhaseActive ? drawPadEl : lobbyBoxEl || drawPadEl;
+        const refEl = drawPhaseActive ? getDrawRefEl() : lobbyBoxEl || drawPadEl;
         updateMouseCoordsFromEvent(e, refEl);
       }
       if (drawPhaseActive && activePointers.size === 1) {
@@ -511,7 +523,7 @@
     window.addEventListener('pointermove', (e) => {
       if (!MOUSE_MODE) return;
       const isOverLobby = lobbyBoxEl && !lobbyBoxEl.closest('.hidden');
-      const refEl = drawPhaseActive ? drawPadEl : isOverLobby ? lobbyBoxEl : drawPadEl;
+      const refEl = drawPhaseActive ? getDrawRefEl() : isOverLobby ? lobbyBoxEl : drawPadEl;
       updateMouseCoordsFromEvent(e, refEl);
     });
 

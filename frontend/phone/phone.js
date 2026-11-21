@@ -1,4 +1,4 @@
-// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 Items 1..5 Complete)
+// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 Items 1..5 Complete + Centred Square Canvas Box)
 (() => {
   'use strict';
 
@@ -115,6 +115,27 @@
   // Store extras by round so round:extras can merge cleanly even if arriving multiple times
   const extrasByRound = new Map();
 
+  // Sync a canvas's internal pixel buffer to its actual rendered CSS dimensions and return
+  // a centred SQUARE box { w, h, size, ox, oy, cx, cy } where size = min(width, height).
+  function getCentredSquareBox(canvasEl) {
+    const rect = canvasEl.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const cssW = rect.width > 0 ? rect.width : canvasEl.width;
+    const cssH = rect.height > 0 ? rect.height : canvasEl.height;
+    const targetW = Math.max(1, Math.round(cssW * dpr));
+    const targetH = Math.max(1, Math.round(cssH * dpr));
+    if (canvasEl.width !== targetW || canvasEl.height !== targetH) {
+      canvasEl.width = targetW;
+      canvasEl.height = targetH;
+    }
+    const w = canvasEl.width;
+    const h = canvasEl.height;
+    const size = Math.min(w, h);
+    const ox = (w - size) / 2;
+    const oy = (h - size) / 2;
+    return { w, h, size, ox, oy, cx: w / 2, cy: h / 2, dpr };
+  }
+
   // Safe haptic vibration helper (V3 Item 5)
   function vibratePhone(pattern) {
     try {
@@ -194,8 +215,8 @@
     return Boolean(isPracticeRound || SkyPointer.DEBUG_MODE);
   }
 
-  // Bind pointer events for hold-to-draw and ?mouse=1
-  SkyPointer.bindPadEvents(screens.draw, lobbyTestBox);
+  // Bind pointer events for hold-to-draw and ?mouse=1 (passing debugDrawCanvas so ?mouse=1 uses the same square box)
+  SkyPointer.bindPadEvents(screens.draw, lobbyTestBox, debugDrawCanvas);
 
   SkyPointer.onUpdate((st) => {
     // P5: Update ?debug=1 HUD including e.absolute flag
@@ -208,12 +229,23 @@
       renderDebugDrawCanvas(st);
     }
 
-    // Update Lobby test dot
+    // Update Lobby test dot inside a centred square box (size = min(width, height))
     if (currentScreen === 'lobby') {
-      const clampedX = Math.max(0.06, Math.min(0.94, st.sx));
-      const clampedY = Math.max(0.06, Math.min(0.94, st.sy));
-      lobbyDot.style.left = `${(clampedX * 100).toFixed(1)}%`;
-      lobbyDot.style.top = `${(clampedY * 100).toFixed(1)}%`;
+      const rect = lobbyTestBox.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        const size = Math.min(rect.width, rect.height);
+        const ox = (rect.width - size) / 2;
+        const oy = (rect.height - size) / 2;
+        const px = Math.max(16, Math.min(rect.width - 16, ox + st.sx * size));
+        const py = Math.max(16, Math.min(rect.height - 16, oy + st.sy * size));
+        lobbyDot.style.left = `${px.toFixed(1)}px`;
+        lobbyDot.style.top = `${py.toFixed(1)}px`;
+      } else {
+        const clampedX = Math.max(0.06, Math.min(0.94, st.sx));
+        const clampedY = Math.max(0.06, Math.min(0.94, st.sy));
+        lobbyDot.style.left = `${(clampedX * 100).toFixed(1)}%`;
+        lobbyDot.style.top = `${(clampedY * 100).toFixed(1)}%`;
+      }
 
       // Hide "isn't sending motion" warning once motion arrives
       if (st.hasOrientationEvent && !st.motionPermissionDenied) {
@@ -528,9 +560,8 @@
       memoryBanner.classList.add('hidden');
     }
 
-    drawShapeThumbnail(readyCtx, readyShapeCanvas, activeTargetStrokes);
-
     showScreen('ready');
+    drawShapeThumbnail(readyCtx, readyShapeCanvas, activeTargetStrokes);
     requestWakeLock();
 
     const startTs = performance.now();
@@ -585,16 +616,16 @@
     countdownRafId = requestAnimationFrame(tickCountdown);
   }
 
+  // Draws target shape thumbnail inside a centred SQUARE box (size = min(width, height))
   function drawShapeThumbnail(ctx, canvasEl, strokes) {
-    const w = canvasEl.width;
-    const h = canvasEl.height;
+    const { w, h, size, ox, oy, dpr } = getCentredSquareBox(canvasEl);
     ctx.clearRect(0, 0, w, h);
 
     if (!strokes || strokes.length === 0) return;
 
     ctx.save();
     ctx.strokeStyle = '#e8ff64'; // Matches host.css #target (--acid)
-    ctx.lineWidth = 7;
+    ctx.lineWidth = 6 * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -602,8 +633,8 @@
       if (!Array.isArray(stroke) || stroke.length < 2) continue;
       ctx.beginPath();
       for (let i = 0; i < stroke.length; i++) {
-        const x = stroke[i][0] * w;
-        const y = stroke[i][1] * h;
+        const x = ox + stroke[i][0] * size;
+        const y = oy + stroke[i][1] * size;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -683,23 +714,25 @@
     drawRafId = requestAnimationFrame(tickDraw);
   }
 
+  // Draws practice/debug target shape, live player strokes, and cursor dot inside a centred SQUARE box (size = min(width, height))
   function renderDebugDrawCanvas(st) {
-    const w = debugDrawCanvas.width;
-    const h = debugDrawCanvas.height;
+    const { w, h, size, ox, oy, dpr } = getCentredSquareBox(debugDrawCanvas);
     debugDrawCtx.clearRect(0, 0, w, h);
 
     // Target shape guide in --acid (#e8ff64)
     if (!isMemoryRound && activeTargetStrokes.length > 0) {
       debugDrawCtx.save();
-      debugDrawCtx.strokeStyle = 'rgba(232, 255, 100, 0.38)';
-      debugDrawCtx.lineWidth = 5;
-      debugDrawCtx.setLineDash([10, 8]);
+      debugDrawCtx.strokeStyle = 'rgba(232, 255, 100, 0.42)';
+      debugDrawCtx.lineWidth = 4 * dpr;
+      debugDrawCtx.setLineDash([8 * dpr, 7 * dpr]);
+      debugDrawCtx.lineCap = 'round';
+      debugDrawCtx.lineJoin = 'round';
       for (const s of activeTargetStrokes) {
         if (!Array.isArray(s) || s.length < 2) continue;
         debugDrawCtx.beginPath();
         s.forEach((pt, idx) => {
-          const x = pt[0] * w;
-          const y = pt[1] * h;
+          const x = ox + pt[0] * size;
+          const y = oy + pt[1] * size;
           if (idx === 0) debugDrawCtx.moveTo(x, y);
           else debugDrawCtx.lineTo(x, y);
         });
@@ -711,15 +744,15 @@
     // Recorded player strokes in --pink (#ffabcc)
     debugDrawCtx.save();
     debugDrawCtx.strokeStyle = '#ffabcc';
-    debugDrawCtx.lineWidth = 7;
+    debugDrawCtx.lineWidth = 6 * dpr;
     debugDrawCtx.lineCap = 'round';
     debugDrawCtx.lineJoin = 'round';
     for (const s of st.strokes) {
       if (!Array.isArray(s) || s.length < 2) continue;
       debugDrawCtx.beginPath();
       s.forEach((pt, idx) => {
-        const x = pt[0] * w;
-        const y = pt[1] * h;
+        const x = ox + pt[0] * size;
+        const y = oy + pt[1] * size;
         if (idx === 0) debugDrawCtx.moveTo(x, y);
         else debugDrawCtx.lineTo(x, y);
       });
@@ -727,13 +760,13 @@
     }
     debugDrawCtx.restore();
 
-    // Live cursor dot
+    // Live cursor dot mapped with the exact same square box
     debugDrawCtx.save();
     debugDrawCtx.fillStyle = st.penDown ? '#ffabcc' : '#e8ff64';
     debugDrawCtx.strokeStyle = '#ffffff';
-    debugDrawCtx.lineWidth = 3;
+    debugDrawCtx.lineWidth = 2.5 * dpr;
     debugDrawCtx.beginPath();
-    debugDrawCtx.arc(st.sx * w, st.sy * h, 10, 0, Math.PI * 2);
+    debugDrawCtx.arc(ox + st.sx * size, oy + st.sy * size, 8 * dpr, 0, Math.PI * 2);
     debugDrawCtx.fill();
     debugDrawCtx.stroke();
     debugDrawCtx.restore();
@@ -784,14 +817,9 @@
   }
 
   // V3 Item 4: Render & animate player's normalised pathStrokes over targetNormStrokes / targetNorm
+  // inside a centred SQUARE box (size = min(width, height))
   function animateMiniReplay(targetStrokesNorm, playerStrokesNorm) {
     if (replayRafId) cancelAnimationFrame(replayRafId);
-
-    const w = resReplayCanvas.width;
-    const h = resReplayCanvas.height;
-    const scale = w / 5;
-    const cx = w / 2;
-    const cy = h / 2;
 
     const totalPlayerPts = (playerStrokesNorm || []).reduce(
       (sum, s) => sum + (Array.isArray(s) ? s.length : 0),
@@ -802,14 +830,16 @@
     const startTs = performance.now();
 
     function drawFrame(now) {
+      const { w, h, size, cx, cy, dpr } = getCentredSquareBox(resReplayCanvas);
+      const scale = size / 5;
       const progress = Math.min(1, (now - startTs) / durationMs);
       resReplayCtx.clearRect(0, 0, w, h);
 
-      // 1. Draw normalised target strokes in dashed acid/grey
+      // 1. Draw normalised target strokes
       if (Array.isArray(targetStrokesNorm) && targetStrokesNorm.length > 0) {
         resReplayCtx.save();
         resReplayCtx.strokeStyle = 'rgba(232, 255, 100, 0.45)';
-        resReplayCtx.lineWidth = 6;
+        resReplayCtx.lineWidth = 4.5 * dpr;
         resReplayCtx.lineCap = 'round';
         resReplayCtx.lineJoin = 'round';
         for (const stroke of targetStrokesNorm) {
@@ -831,7 +861,7 @@
         let ptsBudget = Math.max(2, Math.ceil(totalPlayerPts * progress));
         resReplayCtx.save();
         resReplayCtx.strokeStyle = '#ffabcc';
-        resReplayCtx.lineWidth = 7;
+        resReplayCtx.lineWidth = 5.5 * dpr;
         resReplayCtx.lineCap = 'round';
         resReplayCtx.lineJoin = 'round';
 
@@ -891,7 +921,6 @@
         ? [payload.targetNorm]
         : [];
     const myPathStrokes = mine && Array.isArray(mine.pathStrokes) ? mine.pathStrokes : [];
-    animateMiniReplay(targetNormStrokes, myPathStrokes);
 
     const isValid = mine ? mine.valid !== false : false;
     if (!mine || !isValid) {
@@ -947,6 +976,7 @@
 
     applyExtrasToResultsUI(round, shapeName);
     showScreen('results');
+    animateMiniReplay(targetNormStrokes, myPathStrokes);
   }
 
   function handleRoundExtras(payload) {
