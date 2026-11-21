@@ -196,13 +196,13 @@ test('non-host cannot start; health endpoint', async () => {
   assert.strictEqual(h.ok, true); assert.strictEqual(h.snowflake, 'off');
 });
 
-test('results auto-advance: 8 s + 3.5 s per real player, capped at 90 s', () => {
+test('results auto-advance: 22 s + 3.5 s per real player, capped at 90 s', () => {
   const { resultsDelayMs } = require('../game');
-  assert.strictEqual(resultsDelayMs(0), 8000);
-  assert.strictEqual(resultsDelayMs(1), 11500);
-  assert.strictEqual(resultsDelayMs(4), 22000);
-  assert.strictEqual(resultsDelayMs(23), 88500);
-  assert.strictEqual(resultsDelayMs(24), 90000);
+  assert.strictEqual(resultsDelayMs(0), 22000);
+  assert.strictEqual(resultsDelayMs(1), 25500);
+  assert.strictEqual(resultsDelayMs(4), 36000);
+  assert.strictEqual(resultsDelayMs(19), 88500);
+  assert.strictEqual(resultsDelayMs(20), 90000);
   assert.strictEqual(resultsDelayMs(150), 90000);
 });
 
@@ -288,4 +288,61 @@ test('a late submit for the practice round is refused once round 1 starts', asyn
   await once(host, 'round:start');
   assert.strictEqual((await submit(b, code, jb.playerId, 0, circle())).error, 'ROUND_CLOSED');
   assert.ok((await submit(b, code, jb.playerId, 1, circle())).ok);
+});
+
+test('host:endRound sends round:stop and judges within 2 s; checkAllIn still ends a round early', async () => {
+  // real 10 s practice round, so only an early end can judge it in time
+  const slow = await start({ port: 0, quiet: true, timing: { ...timing, durationScale: 1, countdownMs: 50 } });
+  const u = `http://localhost:${slow.port}`;
+  const mk = () => { const s = connect(u, { transports: ['websocket'], forceNew: true }); s.q = {}; s.w = {};
+    s.onAny((ev, p) => { const w = s.w[ev] && s.w[ev].shift(); if (w) w(p); else (s.q[ev] = s.q[ev] || []).push(p); }); socks.push(s); return s; };
+  try {
+    const host = mk(), a = mk(), b = mk();
+    const { code } = await call(host, 'host:create', { test: true });
+    const ja = await call(a, 'player:join', { code, name: 'Ann' });
+    const jb = await call(b, 'player:join', { code, name: 'Bob' });
+    assert.strictEqual((await call(host, 'host:endRound', { code })).error, 'NOT_IN_ROUND');
+
+    await call(host, 'host:start', { code, rounds: 3 });
+    const st = await once(a, 'round:start');
+    assert.strictEqual(st.round, 0);
+    assert.strictEqual((await call(a, 'host:endRound', { code })).error, 'NOT_HOST');
+    await submit(a, code, ja.playerId, 0, circle());
+
+    const t0 = Date.now();
+    assert.ok((await call(host, 'host:endRound', { code })).ok);
+    assert.deepStrictEqual(await once(b, 'round:stop'), { round: 0 });
+    assert.deepStrictEqual(await once(host, 'round:stop'), { round: 0 });
+    const res = await once(host, 'round:results', 2500);
+    const took = Date.now() - t0;
+    assert.ok(took < 2000, `judged ${took} ms after host:endRound`);
+    assert.ok(took >= 1400, `waited ${took} ms for late submits`);
+    assert.strictEqual(res.round, 0);
+    assert.deepStrictEqual(res.results.map((r) => [r.name, r.valid]), [['Ann', true], ['Bob', false]]);
+    assert.strictEqual((await call(host, 'host:endRound', { code })).error, 'NOT_IN_ROUND');
+
+    // round 1: both submit after round:stop, so judging comes well before the 1.5 s wait
+    await call(host, 'host:next', { code });
+    const st1 = await once(a, 'round:start');
+    assert.strictEqual(st1.round, 1);
+    const t1 = Date.now();
+    assert.ok((await call(host, 'host:endRound', { code })).ok);
+    await once(a, 'round:stop'); await once(b, 'round:stop');
+    await submit(a, code, ja.playerId, 1, circle());
+    await submit(b, code, jb.playerId, 1, line());
+    const r1 = await once(host, 'round:results', 2500);
+    assert.ok(Date.now() - t1 < 1000, 'everyone in, so judged before the stop wait ran out');
+    assert.ok(r1.results.every((r) => r.valid));
+
+    // round 2: no host action, every real player submits, round ends without waiting for the timer
+    await call(host, 'host:next', { code });
+    await once(a, 'round:start');
+    const t2 = Date.now();
+    await submit(a, code, ja.playerId, 2, circle());
+    await submit(b, code, jb.playerId, 2, circle());
+    await once(host, 'round:results', 2500);
+    assert.ok(Date.now() - t2 < 1000, 'checkAllIn ended the round');
+  } finally {
+    await slow.close();
+  }
 });

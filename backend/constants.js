@@ -17,7 +17,8 @@ module.exports = {
   TIMING: {
     countdownMs: 3000,
     graceMs: 2000, // after the drawing time, before judging
-    // auto-advance from results: 8 s + 3.5 s per real player, capped at 90 s (host:next skips it)
+    stopMs: 1500, // host:endRound -> round:stop, then judge after this at most
+    // auto-advance from results: 22 s + 3.5 s per real player, capped at 90 s (host:next skips it)
     resultsBaseMs: 22000,   // winner hold 6 s + room view 5.5 s + ranked list ~8 s + slack
     resultsPerPlayerMs: 3500,
     resultsMaxMs: 90000,

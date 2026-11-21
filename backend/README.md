@@ -29,7 +29,12 @@ Snowflake: copy `.env.example` to `.env` and fill it in. `SNOWFLAKE_ENABLED=0` f
 ## Behaviour notes for the other seats
 - Acks: every host:* event acks `{ ok, error? }`; host:bots acks `{ ok, count }`; player:submit acks `{ ok, error? }`
   (errors: ROUND_CLOSED, DUPLICATE, UNKNOWN_PLAYER, BAD_DRAWING). player:join ack also returns `name` (the cleaned one).
-- Extra errors: NOT_HOST, NO_PLAYERS, NOT_IN_RESULTS, PLAYER_NOT_FOUND, SERVER_ERROR.
+- Extra errors: NOT_HOST, NO_PLAYERS, NOT_IN_RESULTS, NOT_IN_ROUND, PLAYER_NOT_FOUND, SERVER_ERROR.
+- Early round end, two ways:
+  - `host:endRound { code }` (host only, ROUND_ACTIVE only) acks `{ ok }`, sends `round:stop { round }` to the room,
+    then judges after 1.5 s at most. Phones should submit what they have as soon as round:stop arrives.
+  - Without the host: the round ends as soon as every connected real player has submitted (ghosts don't count).
+  Either way, judging happens sooner if everyone is in. Submits stay open until judging starts.
 - `room:closed { reason }` goes to everyone when the host stays away 60 s, or the room is idle for 1 hour.
 - A rejoin (same playerId) gets `lobby:update` then the room's current phase again. A resent mid-round
   `round:start` has `resumed: true` and countdownMs/durationMs shortened to the time left.

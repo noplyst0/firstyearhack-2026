@@ -133,6 +133,8 @@ function createGame(io, opts = {}) {
     room.shape = shape;
     room.durationMs = durationMs;
     room.practice = !!step.practice;
+    room.stopping = false;
+    room.allIn = false;
     const payload = {
       round: room.round, totalRounds: room.rounds, shapeId: shape.id, shapeName: shape.name,
       difficulty: shape.difficulty, targetStrokes: shape.strokes, targetPoints: shape.strokes.flat(),
@@ -169,6 +171,7 @@ function createGame(io, opts = {}) {
     const real = connectedReal(room);
     if (real.length && real.every((p) => room.subs.has(p.id))) {
       clearTimer(room, 'round');
+      room.allIn = true;
       log(`[${room.code}] round ${room.round}: everyone submitted`);
       setTimer(room, 'round', 50, () => judge(room));
     }
@@ -600,6 +603,20 @@ function createGame(io, opts = {}) {
       if (room.state !== 'RESULTS') return ack({ ok: false, error: 'NOT_IN_RESULTS' });
       ack({ ok: true });
       next(room);
+    });
+
+    // host ends the round early: phones get round:stop and submit what they have, judging follows
+    // within stopMs (sooner if checkAllIn sees every connected real player submit)
+    handle(socket, 'host:endRound', (data, ack) => {
+      const room = hostRoom(socket, data, ack);
+      if (!room) return;
+      if (room.state !== 'ROUND_ACTIVE') return ack({ ok: false, error: 'NOT_IN_ROUND' });
+      ack({ ok: true });
+      if (room.stopping || room.allIn) return;
+      room.stopping = true;
+      io.to(room.code).emit('round:stop', { round: room.round });
+      log(`[${room.code}] round ${room.round}: ended by host`);
+      setTimer(room, 'round', T.stopMs, () => judge(room));
     });
 
     handle(socket, 'host:again', (data, ack) => {
