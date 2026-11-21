@@ -3,7 +3,10 @@
   "private": true,
   "main": "snowflake.js",
   "scripts": {
-    "test": "node test.js"
+    "smoke": "node test/smoke.js",
+    "setup": "node run_sql.js setup.sql",
+    "shapes": "node make_shapes.js",
+    "load": "node load_shapes.js"
   },
   "dependencies": {
     "snowflake-sdk": "^3.4.1"

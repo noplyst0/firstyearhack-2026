@@ -1,63 +1,22 @@
--- SkySketch: Snowflake foundation (database, warehouse, tables).
--- Run once in Snowsight (or snowsql). Safe to re-run: everything is IF NOT EXISTS.
--- Scoring SQL is NOT here yet: the final plan may change the scoring rules.
-
-CREATE WAREHOUSE IF NOT EXISTS SKYSKETCH_WH
-  WAREHOUSE_SIZE = 'XSMALL'
-  AUTO_SUSPEND = 60          -- seconds idle before it switches off (saves credits)
-  AUTO_RESUME = TRUE
-  INITIALLY_SUSPENDED = TRUE;
-
+-- SkySketch v2 Snowflake setup (plan/ai.md §2). Run once: `node run_sql.js setup.sql` or paste into Snowsight.
+-- CREATE OR REPLACE wipes the tables: fine until real games are stored. After that, don't re-run it.
 CREATE DATABASE IF NOT EXISTS SKYSKETCH;
-USE DATABASE SKYSKETCH;
-CREATE SCHEMA IF NOT EXISTS GAME;
-USE SCHEMA GAME;
-USE WAREHOUSE SKYSKETCH_WH;
+CREATE SCHEMA IF NOT EXISTS SKYSKETCH.GAME;
+CREATE WAREHOUSE IF NOT EXISTS SKY_WH WITH WAREHOUSE_SIZE = 'XSMALL' AUTO_SUSPEND = 600 AUTO_RESUME = TRUE INITIALLY_SUSPENDED = FALSE;
+ALTER WAREHOUSE SKY_WH SET AUTO_SUSPEND = 600;   -- 10 minutes, so there's no cold start mid-demo
+USE WAREHOUSE SKY_WH;
+USE SCHEMA SKYSKETCH.GAME;
 
--- One row per game room (4-letter code shown on the big screen).
-CREATE TABLE IF NOT EXISTS rooms (
-  code        STRING        NOT NULL PRIMARY KEY,
-  status      STRING        DEFAULT 'lobby',   -- lobby | playing | ended
-  rounds      INTEGER       DEFAULT 3,
-  created_at  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-);
-
--- Players who joined a room from their phone.
-CREATE TABLE IF NOT EXISTS players (
-  player_id   STRING        NOT NULL PRIMARY KEY,
-  room_code   STRING        NOT NULL,
-  name        STRING        NOT NULL,
-  joined_at   TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-);
-
--- Target shapes (from ai/shapes.json): points = [[x,y], ...] 64 points in 0..1.
-CREATE TABLE IF NOT EXISTS targets (
-  shape_id    STRING        NOT NULL PRIMARY KEY,  -- circle | triangle | star
-  points      VARIANT       NOT NULL
-);
-
--- One traced path per player per round. points = [[x,y], ...] in 0..1, as sent by the phone.
-CREATE TABLE IF NOT EXISTS attempts (
-  attempt_id  STRING        DEFAULT UUID_STRING() PRIMARY KEY,
-  room_code   STRING        NOT NULL,
-  player_id   STRING        NOT NULL,
-  round       INTEGER       NOT NULL,
-  shape_id    STRING        NOT NULL,
-  points      VARIANT       NOT NULL,
-  created_at  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-);
-
--- Result of scoring an attempt. Filled by the scoring step (added once the final plan is fixed).
-CREATE TABLE IF NOT EXISTS scores (
-  attempt_id   STRING        NOT NULL PRIMARY KEY,
-  room_code    STRING        NOT NULL,
-  player_id    STRING        NOT NULL,
-  round        INTEGER       NOT NULL,
-  accuracy     FLOAT,
-  smoothness   FLOAT,
-  score        FLOAT,
-  round_points INTEGER,        -- 300 / 200 / 100 / 50
-  comment      STRING,         -- AI_COMPLETE one-liner
-  scored_at    TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-);
--- Note: Snowflake does not enforce PRIMARY KEY; it is documentation only.
+CREATE OR REPLACE TABLE GAMES (game_id STRING, room_code STRING, is_test BOOLEAN, created_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP());
+CREATE OR REPLACE TABLE TARGETS (shape_id NUMBER, name STRING, label STRING, difficulty NUMBER, is_round BOOLEAN, is_custom BOOLEAN DEFAULT FALSE);
+CREATE OR REPLACE TABLE TARGET_POINTS (shape_id NUMBER, idx NUMBER, x FLOAT, y FLOAT);
+CREATE OR REPLACE TABLE ATTEMPTS (attempt_id STRING, game_id STRING, round NUMBER, player_id STRING, shape_id NUMBER,
+  is_bot BOOLEAN, n_raw_points NUMBER, n_strokes NUMBER, duration_ms NUMBER, submitted_at TIMESTAMP_NTZ,
+  raw_strokes STRING);   -- JSON text: Snowflake rejects PARSE_JSON inside VALUES
+CREATE OR REPLACE TABLE ATTEMPT_POINTS (attempt_id STRING, idx NUMBER, stroke NUMBER, x FLOAT, y FLOAT);
+CREATE OR REPLACE TABLE SCORES (attempt_id STRING, accuracy FLOAT, on_line FLOAT, coverage FLOAT, final_score FLOAT,
+  rank_in_round NUMBER, points_awarded NUMBER, guess_shape_id NUMBER, guess_score FLOAT, scorer STRING,
+  scored_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP());
+CREATE OR REPLACE TABLE CONFIG (k STRING, v FLOAT);
+INSERT INTO CONFIG VALUES ('D_MAX', 0.35);   -- keep equal to backend/constants.js
+CREATE STAGE IF NOT EXISTS SKY_IMAGES ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE') DIRECTORY = (ENABLE = TRUE);   -- stretch: vision
