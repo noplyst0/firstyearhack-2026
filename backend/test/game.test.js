@@ -100,7 +100,7 @@ test('join rules, ghosts, 3 rounds, duplicate + missing submit, extras, game end
 
   const judging = await once(host, 'round:judging');
   assert.strictEqual(judging.drawings, 3); // Asim + 2 ghosts
-  assert.strictEqual(judging.distanceChecks, 3 * 64 * 256 * 15);
+  assert.strictEqual(judging.distanceChecks, 3 * 64 * 256 * require('../shapes').library.length);
   const res = await once(host, 'round:results');
   assert.strictEqual(res.scorer, 'local');
   assert.strictEqual(res.targetNorm.length, 64);
