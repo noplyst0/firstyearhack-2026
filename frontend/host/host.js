@@ -21,7 +21,10 @@ function screen(active) {
   startTimeout = null;
   phase = active;
   document.body.classList.toggle("in-reveal", active === "drawing-reveal");
-  document.body.classList.toggle("in-fullscreen", active === "room-view-screen");
+  document.body.classList.toggle("in-fullscreen", active === "room-view-screen" || active === "podium-screen");
+  const podiumScreen = byId("podium-screen");
+  if (podiumScreen) podiumScreen.classList.remove("zooming-out", "in-suspense", "champion-live");
+  byId("final")?.classList.remove("entering");
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== active;
   byId("notice").textContent = "";
   window.scrollTo(0, 0);
@@ -203,7 +206,7 @@ socket?.on("round:judging", ({ round, distanceChecks }) => {
   tick();
 });
 socket?.on("lobby:update", ({ players }) => {
-  if (phase === "final" && replayRequested) {
+  if ((phase === "final" || phase === "podium-screen") && replayRequested) {
     replayRequested = false;
     sessionStorage.removeItem(storageKey + "-clock");
     screen("lobby");
@@ -444,125 +447,185 @@ byId("again").onclick = () => {
 };
 
 const confettiPalette = ["#6ef3ff","#ff9bbf","#acff83","#bba7ff","#ffab74","#ffd65b","#e8ff64","#fa92fe"];
-function burstConfetti(container, count = 60) {
+let lastFinalPeople = [];
+
+function burstConfetti(container, count = 84, append = false) {
   if (!container) return;
-  container.replaceChildren(...Array.from({ length: count }, (_, i) => {
+  const bits = Array.from({ length: count }, (_, i) => {
     const bit = document.createElement("i");
-    bit.style.left = ((i * 29 + 7) % 100) + "%";
-    bit.style.background = confettiPalette[i % confettiPalette.length];
-    bit.style.animationDelay = ((i % 10) * 0.065) + "s";
+    bit.style.left = ((i * 23 + (append ? 13 : 5)) % 100) + "%";
+    bit.style.background = confettiPalette[(i + (append ? 3 : 0)) % confettiPalette.length];
+    bit.style.animationDelay = ((i % 12) * 0.065) + "s";
+    bit.style.animationDuration = (2.1 + (i % 5) * 0.28) + "s";
+    bit.style.setProperty("--drift", ((i % 2 ? 1 : -1) * (1.2 + (i % 4) * 0.9)) + "em");
     return bit;
-  }));
+  });
+  if (append) container.append(...bits);
+  else container.replaceChildren(...bits);
 }
-function makePodiumCard(p, rank, onlyOne) {
-  const place = document.createElement("div");
-  const cls = rank === 1 ? "place--1st" : rank === 2 ? "place--2nd" : "place--3rd";
-  place.className = "place " + cls + (onlyOne ? " place--only" : "");
-  const medal = textNode("small", rank === 1 ? "👑 ★ Champion" : rank === 2 ? "🥈 2nd place" : "🥉 3rd place");
-  medal.className = "medal";
+
+function makePodiumColumn(p, rank) {
+  const col = document.createElement("div");
+  const cls = rank === 1 ? "podium-col--1st" : rank === 2 ? "podium-col--2nd" : "podium-col--3rd";
+  col.className = "podium-col " + cls;
+
+  const top = document.createElement("div");
+  top.className = "col-top";
+  const medal = textNode("span", rank === 1 ? "👑 1ST PLACE" : rank === 2 ? "🥈 2ND PLACE" : "🥉 3RD PLACE");
+  medal.className = "col-medal";
   const name = textNode("strong", p.name);
+  name.className = "col-name";
   const pts = textNode("span", p.total + " pts");
-  pts.className = "pts";
-  place.append(medal, name, pts);
-  return place;
+  pts.className = "col-pts";
+  top.append(medal, name, pts);
+
+  const pillar = document.createElement("div");
+  pillar.className = "col-pillar";
+  const num = textNode("span", String(rank));
+  num.className = "col-rank";
+  pillar.append(num);
+
+  col.append(top, pillar);
+  return col;
 }
-function runKahootPodium(people) {
-  clearPodiumTimers();
+
+function makeMysteryColumn() {
+  const wrap = document.createElement("div");
+  wrap.className = "podium-mystery";
+  const box = textNode("div", "?");
+  box.className = "mystery-box";
+  wrap.append(box);
+  return wrap;
+}
+
+function runGameShowPodium(people) {
+  if (!people.length) {
+    byId("replay-podium").hidden = true;
+    screen("final");
+    return;
+  }
+
+  byId("replay-podium").hidden = false;
+  screen("podium-screen");
+
+  const podiumScreen = byId("podium-screen");
   const podium = byId("podium");
   const banner = byId("podium-banner");
   const confetti = byId("final-confetti");
-  const grid = byId("final-grid");
   const skipBtn = byId("skip-podium");
   confetti.replaceChildren();
-  banner.classList.remove("suspense");
+  banner.classList.remove("suspense", "hush", "winner");
 
-  if (!people.length) {
-    podium.replaceChildren();
-    banner.textContent = "Thanks for playing!";
-    grid.hidden = false;
-    skipBtn.hidden = true;
-    return;
-  }
+  // 3rd (left), 1st (centre, tallest), 2nd (right).
+  const col3 = people[2] ? makePodiumColumn(people[2], 3) : null;
+  const col1 = makePodiumColumn(people[0], 1);
+  const col2 = people[1] ? makePodiumColumn(people[1], 2) : null;
+  const cols = [col3, col1, col2].filter(Boolean);
+  podium.replaceChildren(...cols);
 
-  const onlyOne = people.length === 1;
-  const slots = [];
-  const card1 = makePodiumCard(people[0], 1, onlyOne);
-  const card2 = people[1] ? makePodiumCard(people[1], 2, false) : null;
-  const card3 = people[2] ? makePodiumCard(people[2], 3, false) : null;
-  if (card2) slots.push(card2);
-  slots.push(card1);
-  if (card3) slots.push(card3);
-  podium.replaceChildren(...slots);
-
-  const revealAllNow = () => {
-    clearPodiumTimers();
-    banner.classList.remove("suspense");
-    card1.classList.remove("suspense");
-    card1.replaceChildren(...makePodiumCard(people[0], 1, onlyOne).childNodes);
-    for (const c of slots) c.classList.add("revealed");
-    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
-    grid.hidden = false;
-    skipBtn.hidden = true;
-  };
-  skipBtn.onclick = revealAllNow;
-
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    revealAllNow();
-    return;
-  }
-
-  grid.hidden = true;
-  skipBtn.hidden = false;
-  banner.textContent = "✦ FINAL PODIUM ✦";
-
-  let t = 550;
+  let transitioning = false;
   const schedule = (delay, fn) => { podiumTimers.push(setTimeout(fn, delay)); };
 
-  if (card3) {
-    schedule(t, () => {
-      banner.textContent = "🥉 3RD PLACE… " + people[2].name + "!";
-      card3.classList.add("revealed");
-      sounds.play("podium");
+  const transitionToFinal = (instant = false) => {
+    if (transitioning) return;
+    transitioning = true;
+    clearPodiumTimers();
+    const finalSection = byId("final");
+    if (instant || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      screen("final");
+      return;
+    }
+    // Reveal the separate final screen underneath while the podium zooms out.
+    document.body.classList.remove("in-fullscreen");
+    finalSection.hidden = false;
+    finalSection.classList.add("entering");
+    podiumScreen.classList.add("zooming-out");
+    schedule(760, () => {
+      podiumScreen.hidden = true;
+      podiumScreen.classList.remove("zooming-out", "in-suspense", "champion-live");
+      finalSection.classList.remove("entering");
+      phase = "final";
+      window.scrollTo(0, 0);
     });
-    t += 1550;
+  };
+  skipBtn.onclick = () => transitionToFinal(false);
+
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    for (const c of cols) c.classList.add("risen");
+    podiumScreen.classList.add("champion-live");
+    banner.classList.add("winner");
+    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
+    schedule(6000, () => transitionToFinal(true));
+    return;
   }
-  if (card2) {
+
+  banner.textContent = "✦ FINAL PODIUM ✦";
+  let t = 500;
+
+  if (col3) {
     schedule(t, () => {
-      banner.textContent = "🥈 2ND PLACE… " + people[1].name + "!";
-      card2.classList.add("revealed");
+      banner.textContent = "🥉 3RD PLACE";
+      col3.classList.add("risen");
+      sounds.play("podium3");
+    });
+    t += 1850;
+  }
+
+  if (col2) {
+    schedule(t, () => {
+      banner.textContent = "🥈 2ND PLACE";
+      col2.classList.add("risen");
       sounds.play("podium2");
     });
-    t += 1600;
+    t += 1900;
   }
 
-  // Drum roll + suspense before revealing #1
+  // Long drum roll + shaking mystery centre pedestal.
+  let mystery = null;
   schedule(t, () => {
-    banner.textContent = "🥁 AND THE CHAMPION IS…";
+    banner.textContent = "🥁 AND YOUR CHAMPION IS…";
     banner.classList.add("suspense");
-    card1.replaceChildren(textNode("small", "★ 1ST PLACE"), textNode("strong", "???"), textNode("span", "…"));
-    card1.classList.add("suspense");
-    sounds.play("drumroll");
+    podiumScreen.classList.add("in-suspense");
+    mystery = makeMysteryColumn();
+    podium.append(mystery);
+    sounds.play("longDrumroll");
   });
-  t += 1850;
+  t += 2250;
 
-  // Winner burst + confetti
+  // Breathless silent suspense pause right before #1 rockets up.
   schedule(t, () => {
     banner.classList.remove("suspense");
-    card1.classList.remove("suspense");
-    card1.replaceChildren(...makePodiumCard(people[0], 1, onlyOne).childNodes);
-    card1.classList.add("revealed");
-    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
-    sounds.play("fanfare");
-    burstConfetti(confetti, 64);
+    banner.classList.add("hush");
+    banner.textContent = "…";
+    if (mystery) mystery.classList.add("hush");
   });
-  t += 1100;
+  t += 600;
 
-  // Show full leaderboard & Snowflake stats panel
+  // 1st place (centre, tallest) rises with fanfare & full-screen confetti.
   schedule(t, () => {
-    grid.hidden = false;
-    skipBtn.hidden = true;
+    if (mystery) { mystery.remove(); mystery = null; }
+    podiumScreen.classList.remove("in-suspense");
+    podiumScreen.classList.add("champion-live");
+    banner.classList.remove("suspense", "hush");
+    banner.classList.add("winner");
+    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
+    col1.classList.add("risen");
+    sounds.play("championFanfare");
+    burstConfetti(confetti, 84, false);
   });
+  // Second celebratory confetti wave while holding the podium.
+  schedule(t + 1450, () => {
+    burstConfetti(confetti, 48, true);
+  });
+
+  // Hold the full podium ~6 s, then zoom-out to the separate final screen.
+  schedule(t + 6200, () => transitionToFinal(false));
 }
+
+byId("replay-podium").onclick = () => {
+  sounds.unlock();
+  if (lastFinalPeople.length) runGameShowPodium(lastFinalPeople);
+};
 
 function makeAwardChip(label, value, tone) {
   const chip = document.createElement("div");
@@ -637,15 +700,15 @@ function renderAdvancedStats(stats = {}) {
 }
 
 socket?.on("game:end", ({ leaderboard, stats = {} }) => {
-  screen("final");
   replayRequested = false;
   const people = leaderboard.filter(p => !p.isBot);
+  lastFinalPeople = people;
   function placing(p,i) {
     const row = document.createElement("li");
     row.append(textNode("strong", "#" + (i+1) + "  " + p.name), textNode("span", p.total + " pts"));
     return row;
   }
   byId("leaders").replaceChildren(...people.map(placing));
-  runKahootPodium(people);
   renderAdvancedStats(stats);
+  runGameShowPodium(people);
 });

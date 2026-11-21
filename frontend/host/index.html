@@ -110,13 +110,24 @@
         <p id="room-view-verdict" class="room-view-verdict"></p>
       </div>
     </section>
-    <section id="final" hidden>
-      <div class="row"><h2>Final standings</h2><div class="controls"><button id="skip-podium" hidden>Skip reveal →</button><button id="again">Play again ↻</button></div></div>
-      <div id="podium-stage" class="podium-stage">
-        <div id="final-confetti" class="confetti-layer" aria-hidden="true"></div>
-        <p id="podium-banner" class="podium-banner" aria-live="polite"></p>
-        <div id="podium"></div>
+    <section id="podium-screen" aria-label="Final podium" hidden>
+      <div class="podium-backdrop" aria-hidden="true">
+        <div class="podium-rays"></div>
+        <div class="podium-beam"></div>
       </div>
+      <div id="final-confetti" class="confetti-layer" aria-hidden="true"></div>
+      <div class="podium-topbar">
+        <strong class="podium-brand">✦ SKYSKETCH FINALE</strong>
+        <button id="skip-podium" type="button">Standings →</button>
+      </div>
+      <p id="podium-banner" class="podium-banner" aria-live="polite"></p>
+      <div class="podium-arena">
+        <div id="podium" class="podium-columns"></div>
+        <div class="podium-floor" aria-hidden="true"></div>
+      </div>
+    </section>
+    <section id="final" hidden>
+      <div class="row"><h2>Final standings</h2><div class="controls"><button id="replay-podium" type="button" hidden>🏆 Podium</button><button id="again">Play again ↻</button></div></div>
       <div id="final-grid" class="final-grid"><div><h2>Leaderboard</h2><ol id="leaders"></ol></div>
         <div class="card stats">
           <h2 id="stats-title">Drawing stats</h2>
