@@ -76,14 +76,32 @@
     <section id="results" hidden>
       <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><div class="controls"><button id="room-view-btn" hidden>❄ Room View</button><button id="next">Next round →</button></div></div>
       <div id="practice-results-note" class="banner-practice" hidden>✦ Practice round · Scores don’t count — Round 1 starts next!</div>
-      <div id="room-view" class="card room-view" hidden>
-        <div class="room-view-head">
-          <h2>❄ Room View · Where the room went</h2>
-          <p id="room-view-headline" class="room-view-headline"></p>
+      <div id="room-view-teaser" class="card room-view-teaser" hidden>
+        <div class="room-view-teaser-copy">
+          <strong>❄ Room View</strong>
+          <span id="room-view-teaser-stats"></span>
         </div>
-        <div class="stage room-view-stage">
-          <svg id="room-view-svg" viewBox="-250 -250 500 500" role="img" aria-label="Room heatmap and crowd average drawing"></svg>
+        <button id="room-view-open" type="button">Full screen ↗</button>
+      </div>
+      <div id="rankings"><h2>Round standings</h2><ol id="rank-list"></ol></div>
+      <p id="ghost-summary"></p>
+    </section>
+    <section id="room-view-screen" aria-label="Room View" hidden>
+      <div class="room-view-topbar">
+        <div class="room-view-badge">
+          <strong>❄ ROOM VIEW</strong>
+          <span id="room-view-shape"></span>
         </div>
+        <div class="controls">
+          <button id="room-view-back" type="button">← Standings</button>
+          <button id="room-view-next" type="button">Next round →</button>
+        </div>
+      </div>
+      <div class="room-view-canvas">
+        <svg id="room-view-svg" viewBox="-160 -160 320 320" role="img" aria-label="Room heatmap and crowd average drawing"></svg>
+      </div>
+      <div id="room-view-hud" class="card room-view-hud">
+        <p id="room-view-headline" class="room-view-headline"></p>
         <div class="room-view-legend">
           <span><i class="swatch swatch-hit"></i>Everyone hit</span>
           <span><i class="swatch swatch-miss"></i>Everyone missed</span>
@@ -91,8 +109,6 @@
         </div>
         <p id="room-view-verdict" class="room-view-verdict"></p>
       </div>
-      <div id="rankings"><h2>Round standings</h2><ol id="rank-list"></ol></div>
-      <p id="ghost-summary"></p>
     </section>
     <section id="final" hidden>
       <div class="row"><h2>Final standings</h2><div class="controls"><button id="skip-podium" hidden>Skip reveal →</button><button id="again">Play again ↻</button></div></div>

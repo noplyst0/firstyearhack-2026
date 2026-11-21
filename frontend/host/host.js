@@ -21,6 +21,7 @@ function screen(active) {
   startTimeout = null;
   phase = active;
   document.body.classList.toggle("in-reveal", active === "drawing-reveal");
+  document.body.classList.toggle("in-fullscreen", active === "room-view-screen");
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== active;
   byId("notice").textContent = "";
   window.scrollTo(0, 0);
@@ -230,51 +231,71 @@ function textNode(tag, value) {
   return node;
 }
 const percentage = value => Number(value).toFixed(1) + "%";
-let result, featured, comments, percentiles, roomViewData, roomViewFocused = false;
+let result, featured, comments, percentiles, roomViewData;
 
-function updateRoomViewUI() {
-  const panel = byId("room-view");
-  const btn = byId("room-view-btn");
-  const hasData = Boolean(roomViewData && (roomViewData.heat?.length || roomViewData.crowd?.path?.length));
-  btn.hidden = !hasData;
-  if (!hasData) {
-    panel.hidden = true;
-    roomViewFocused = false;
-    byId("results").classList.remove("room-focus");
-    byId("rankings").hidden = false;
-    return;
-  }
-  panel.hidden = false;
-  byId("results").classList.toggle("room-focus", roomViewFocused);
-  byId("rankings").hidden = roomViewFocused;
-  btn.textContent = roomViewFocused ? "← Round standings" : "❄ Room View";
-
+function roomViewHeadline() {
   const validReal = (result?.results || []).filter(p => !p.isBot && p.valid);
   const computedAlone = validReal.length
     ? validReal.reduce((sum, p) => sum + Number(p.score || 0), 0) / validReal.length
     : null;
-  const alone = roomViewData.alone != null && Number.isFinite(Number(roomViewData.alone))
+  const alone = roomViewData?.alone != null && Number.isFinite(Number(roomViewData.alone))
     ? Number(roomViewData.alone)
     : computedAlone;
-  const together = roomViewData.crowd?.score != null && Number.isFinite(Number(roomViewData.crowd.score))
+  const together = roomViewData?.crowd?.score != null && Number.isFinite(Number(roomViewData.crowd.score))
     ? Number(roomViewData.crowd.score)
     : null;
 
   const parts = [];
-  if (alone != null) parts.push("Alone: " + percentage(alone));
-  if (together != null) parts.push("Together: " + percentage(together));
+  if (alone != null) parts.push("Alone " + percentage(alone));
+  if (together != null) parts.push("Together " + percentage(together));
   let headline = parts.join("  ·  ");
   if (alone != null && together != null && together > alone + 0.5) {
     headline += "  (+" + (together - alone).toFixed(1) + "%!)";
   }
-  byId("room-view-headline").textContent = headline || "Collective accuracy heatmap";
+  return headline || "Collective accuracy heatmap";
+}
+
+function updateRoomViewUI() {
+  const btn = byId("room-view-btn");
+  const teaser = byId("room-view-teaser");
+  const hasData = Boolean(roomViewData && (roomViewData.heat?.length || roomViewData.crowd?.path?.length));
+  btn.hidden = !hasData;
+  teaser.hidden = !hasData;
+  if (!hasData) {
+    if (phase === "room-view-screen") screen("results");
+    return;
+  }
+
+  const headline = roomViewHeadline();
+  byId("room-view-teaser-stats").textContent = headline;
+  byId("room-view-headline").textContent = headline;
   byId("room-view-verdict").textContent = roomViewData.verdict || "";
+  const isPractice = Boolean(result?.practice || result?.round === 0);
+  const roundLabel = isPractice ? "Practice round" : "Round " + result?.round;
+  byId("room-view-shape").textContent = [roundLabel, result?.shapeName].filter(Boolean).join(" · ");
+  byId("room-view-next").textContent = byId("next").textContent;
   reveal.renderRoomView(byId("room-view-svg"), result, roomViewData);
 }
-byId("room-view-btn").onclick = () => {
-  roomViewFocused = !roomViewFocused;
+
+function openRoomView() {
+  if (!roomViewData || !(roomViewData.heat?.length || roomViewData.crowd?.path?.length)) return;
+  screen("room-view-screen");
   updateRoomViewUI();
-};
+}
+function closeRoomView() {
+  if (phase !== "room-view-screen") return;
+  screen("results");
+  showStandings();
+  updateRoomViewUI();
+}
+byId("room-view-btn").onclick = openRoomView;
+byId("room-view-open").onclick = e => { e.stopPropagation(); openRoomView(); };
+byId("room-view-teaser").onclick = openRoomView;
+byId("room-view-back").onclick = closeRoomView;
+byId("room-view-next").onclick = () => send("host:next");
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" && phase === "room-view-screen") closeRoomView();
+});
 
 function quoteFor(p) {
   return comments[p.playerId] ?? p.comment ?? "…";
@@ -358,7 +379,6 @@ socket?.on("round:results", data => {
   comments = {};
   percentiles = {};
   roomViewData = null;
-  roomViewFocused = false;
   featured = null;
   byId("spotlight").classList.remove("winner");
   byId("spotlight").hidden = true;
@@ -398,7 +418,7 @@ socket?.on("round:results", data => {
   });
 });
 socket?.on("round:extras", data => {
-  if (!["drawing-reveal","results"].includes(phase) || data.round !== currentRound) return;
+  if (!["drawing-reveal","results","room-view-screen"].includes(phase) || data.round !== currentRound) return;
   if (data.comments) Object.assign(comments, data.comments);
   if (data.percentiles) Object.assign(percentiles, data.percentiles);
   if (data.heat || data.crowd || data.alone != null || data.verdict) {
@@ -411,7 +431,7 @@ socket?.on("round:extras", data => {
     };
   }
   if (featured && !byId("spotlight").hidden) byId("quote").textContent = quoteFor(featured);
-  if (phase === "results") {
+  if (phase === "results" || phase === "room-view-screen") {
     showStandings();
     updateRoomViewUI();
   }
