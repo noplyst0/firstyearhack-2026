@@ -101,10 +101,8 @@ input {
   font-size: 2.8rem;
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
-  body:not(.mouse-mode) .landscape-hint {
-    display: flex;
-  }
+body:not(.mouse-mode) .landscape-hint.visible {
+  display: flex;
 }
 
 /* ?debug=1 HUD bar */

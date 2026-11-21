@@ -7,6 +7,7 @@
 
   // --- DOM Elements ---
   const reconnectBanner = document.getElementById('reconnect-banner');
+  const landscapeHint = document.getElementById('landscape-hint');
   const debugHud = document.getElementById('debug-hud');
   const debugReadout = document.getElementById('debug-readout');
 
@@ -276,6 +277,69 @@
     SkyPointer.recentreNow();
   });
 
+  // --- Landscape Orientation Warning ---
+  // Only shown on get-ready ('ready') and draw ('draw') screens (never on join/lobby/results),
+  // never while a text input is focused, and detected via screen.orientation.type
+  // (fallback: window.matchMedia on physical screen width vs height, never viewport which shrinks when keyboard opens).
+  function isTextInputFocused() {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = String(el.tagName || '').toUpperCase();
+    return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
+  }
+
+  function isDeviceLandscape() {
+    if (SkyPointer.MOUSE_MODE) return false;
+    if (
+      window.screen &&
+      window.screen.orientation &&
+      typeof window.screen.orientation.type === 'string' &&
+      window.screen.orientation.type.length > 0
+    ) {
+      return window.screen.orientation.type.startsWith('landscape');
+    }
+    if (typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(min-device-aspect-ratio: 1/1)');
+      if (mql && typeof mql.matches === 'boolean') {
+        if (
+          window.screen &&
+          typeof window.screen.width === 'number' &&
+          typeof window.screen.height === 'number'
+        ) {
+          return mql.matches && window.screen.width > window.screen.height;
+        }
+        return mql.matches;
+      }
+    }
+    if (
+      window.screen &&
+      typeof window.screen.width === 'number' &&
+      typeof window.screen.height === 'number'
+    ) {
+      return window.screen.width > window.screen.height;
+    }
+    return false;
+  }
+
+  function updateLandscapeWarning() {
+    if (!landscapeHint) return;
+    const isAllowedScreen = currentScreen === 'ready' || currentScreen === 'draw';
+    const shouldShow =
+      isAllowedScreen && !isTextInputFocused() && isDeviceLandscape();
+    landscapeHint.classList.toggle('visible', shouldShow);
+  }
+
+  if (
+    window.screen &&
+    window.screen.orientation &&
+    typeof window.screen.orientation.addEventListener === 'function'
+  ) {
+    window.screen.orientation.addEventListener('change', updateLandscapeWarning);
+  }
+  window.addEventListener('orientationchange', updateLandscapeWarning);
+  document.addEventListener('focusin', updateLandscapeWarning);
+  document.addEventListener('focusout', updateLandscapeWarning);
+
   // --- Screen Switcher ---
   function showScreen(name) {
     currentScreen = name;
@@ -286,6 +350,7 @@
         el.classList.add('hidden');
       }
     }
+    updateLandscapeWarning();
   }
 
   function showJoinError(msg) {
