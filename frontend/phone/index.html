@@ -41,12 +41,9 @@
               <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.06" />
             </linearGradient>
           </defs>
-          <!-- Phone silhouette -->
           <rect x="6" y="14" width="16" height="28" rx="3" fill="#121827" stroke="#00f0ff" stroke-width="2" />
           <circle cx="14" cy="37" r="1.5" fill="#00f0ff" />
-          <!-- Light beam cone -->
           <polygon points="22,22 96,6 96,50 22,34" fill="url(#beamGradJoin)" />
-          <!-- Big screen target spot -->
           <rect x="96" y="4" width="18" height="48" rx="3" fill="none" stroke="#3b4d7a" stroke-width="2" />
           <circle cx="105" cy="28" r="6" fill="#00f0ff" />
         </svg>
@@ -152,6 +149,10 @@
         </div>
       </div>
 
+      <div id="practice-banner" class="practice-banner hidden">
+        PRACTICE ROUND - doesn't count
+      </div>
+
       <div id="memory-banner" class="memory-banner hidden">
         MEMORY ROUND: remember it, it vanishes at GO
       </div>
@@ -187,7 +188,11 @@
 
     <!-- Screen 4: Draw (whole screen is the pen button) -->
     <section id="screen-draw" class="screen draw-screen hidden">
-      <!-- ?debug=1 live canvas overlay -->
+      <div id="draw-practice-banner" class="practice-banner draw-top-banner hidden">
+        PRACTICE ROUND - doesn't count
+      </div>
+
+      <!-- Live line canvas: shown during Practice round or ?debug=1, hidden (blind) in real rounds -->
       <canvas id="debug-draw-canvas" class="debug-draw-canvas hidden" width="500" height="500"></canvas>
 
       <div class="draw-center-hud">
@@ -235,6 +240,10 @@
     <!-- Screen 6: Results (round:results + round:extras) -->
     <section id="screen-results" class="screen hidden">
       <div class="card results-card">
+        <div id="res-practice-banner" class="practice-banner hidden">
+          PRACTICE ROUND - doesn't count
+        </div>
+
         <div class="results-top">
           <span id="res-round-label" class="room-pill">ROUND 1</span>
           <span id="res-rank" class="rank-badge">--</span>

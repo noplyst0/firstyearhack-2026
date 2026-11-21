@@ -426,6 +426,27 @@ input {
   margin-top: 2px;
 }
 
+.practice-banner {
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid var(--green);
+  color: #6ee7b7;
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 12px;
+  letter-spacing: 0.03em;
+}
+
+.draw-top-banner {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 3;
+  pointer-events: none;
+}
+
 .memory-banner {
   background: rgba(245, 158, 11, 0.2);
   border: 2px solid var(--amber);

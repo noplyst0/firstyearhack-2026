@@ -1,4 +1,4 @@
-// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (plan/phone.md + V3 P1-P5)
+// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (plan/phone.md + V3 P1-P5 + Practice Round)
 (() => {
   'use strict';
 
@@ -45,6 +45,7 @@
   const readyShapeMeta = document.getElementById('ready-shape-meta');
   const readyShapeTitle = document.getElementById('ready-shape-title');
   const readyDifficultyStars = document.getElementById('ready-difficulty-stars');
+  const practiceBanner = document.getElementById('practice-banner');
   const memoryBanner = document.getElementById('memory-banner');
   const readyThumbWrap = document.getElementById('ready-thumb-wrap');
   const readyShapeCanvas = document.getElementById('ready-shape-canvas');
@@ -52,6 +53,7 @@
   const readyCountdown = document.getElementById('ready-countdown');
 
   // Screen 4: Draw
+  const drawPracticeBanner = document.getElementById('draw-practice-banner');
   const debugDrawCanvas = document.getElementById('debug-draw-canvas');
   const debugDrawCtx = debugDrawCanvas.getContext('2d');
   const drawProgressCircle = document.getElementById('draw-progress-circle');
@@ -66,6 +68,7 @@
   const judgingChecks = document.getElementById('judging-checks');
 
   // Screen 6: Results
+  const resPracticeBanner = document.getElementById('res-practice-banner');
   const resRoundLabel = document.getElementById('res-round-label');
   const resRank = document.getElementById('res-rank');
   const resScore = document.getElementById('res-score');
@@ -103,6 +106,7 @@
   let activeDifficulty = 1;
   let activeTargetStrokes = [];
   let isMemoryRound = false;
+  let isPracticeRound = false;
   let roundSubmitted = false;
 
   // Store extras by round so round:extras can merge cleanly even if arriving multiple times
@@ -174,6 +178,10 @@
     hideJoinError();
   });
 
+  function shouldShowLiveLine() {
+    return Boolean(isPracticeRound || SkyPointer.DEBUG_MODE);
+  }
+
   // Bind pointer events for hold-to-draw and ?mouse=1
   SkyPointer.bindPadEvents(screens.draw, lobbyTestBox);
 
@@ -181,9 +189,11 @@
     // P5: Update ?debug=1 HUD including e.absolute flag
     if (SkyPointer.DEBUG_MODE) {
       debugReadout.textContent = `yaw: ${st.yaw.toFixed(1)}° | pitch: ${st.pitch.toFixed(1)}° | x: ${st.sx.toFixed(2)} | y: ${st.sy.toFixed(2)} | abs:${st.absolute ? 1 : 0}`;
-      if (currentScreen === 'draw') {
-        renderDebugDrawCanvas(st);
-      }
+    }
+
+    // V3 §1: Show live line during practice round (or ?debug=1); real rounds stay blind
+    if (currentScreen === 'draw' && shouldShowLiveLine()) {
+      renderDebugDrawCanvas(st);
     }
 
     // Update Lobby test dot
@@ -268,8 +278,9 @@
   }
 
   function formatDifficultyStars(difficulty) {
-    const d = Math.max(1, Math.min(3, Number(difficulty) || 1));
-    return '★'.repeat(d) + '☆'.repeat(3 - d);
+    const d = Math.max(1, Math.min(4, Number(difficulty) || 1));
+    const maxStars = Math.max(3, d);
+    return '★'.repeat(d) + '☆'.repeat(maxStars - d);
   }
 
   // --- Session Storage ---
@@ -454,12 +465,13 @@
     if (countdownRafId) cancelAnimationFrame(countdownRafId);
     if (drawRafId) cancelAnimationFrame(drawRafId);
 
-    activeRound = payload.round ?? 1;
+    isPracticeRound = Boolean(payload.practice || payload.round === 0);
+    activeRound = payload.round ?? (isPracticeRound ? 0 : 1);
     const totalRounds = payload.totalRounds || 3;
     activeShapeId = payload.shapeId;
-    activeShapeName = payload.shapeName || String(payload.shapeId || 'shape');
+    activeShapeName = payload.shapeName || String(payload.shapeId || 'circle');
     activeDifficulty = Number(payload.difficulty) || 1;
-    isMemoryRound = Boolean(payload.memory);
+    isMemoryRound = Boolean(payload.memory) && !isPracticeRound;
     roundSubmitted = false;
 
     const strokes =
@@ -478,7 +490,9 @@
     const durationMs = typeof payload.durationMs === 'number' ? payload.durationMs : 10000;
     const countdownMs = typeof payload.countdownMs === 'number' ? payload.countdownMs : 3000;
 
-    readyRoundPill.textContent = `ROUND ${activeRound} OF ${totalRounds}`;
+    readyRoundPill.textContent = isPracticeRound
+      ? 'PRACTICE ROUND'
+      : `ROUND ${activeRound} OF ${totalRounds}`;
     readyShapeTitle.textContent = activeShapeName.toUpperCase();
     readyDifficultyStars.textContent = formatDifficultyStars(activeDifficulty);
 
@@ -487,6 +501,13 @@
     readyShapeTitle.classList.remove('hidden');
     readyDifficultyStars.classList.remove('hidden');
     readyThumbWrap.classList.remove('hidden');
+
+    // V3 §1: Practice round banner
+    if (isPracticeRound) {
+      practiceBanner.classList.remove('hidden');
+    } else {
+      practiceBanner.classList.add('hidden');
+    }
 
     if (isMemoryRound) {
       memoryBanner.classList.remove('hidden');
@@ -575,6 +596,21 @@
     showScreen('draw');
     screens.draw.classList.remove('pen-held');
 
+    // V3 §1: Show practice banner and live line ONLY when practice is true (or ?debug=1); real rounds stay blind
+    if (isPracticeRound) {
+      drawPracticeBanner.classList.remove('hidden');
+    } else {
+      drawPracticeBanner.classList.add('hidden');
+    }
+
+    if (shouldShowLiveLine()) {
+      debugDrawCanvas.classList.remove('hidden');
+      renderDebugDrawCanvas(SkyPointer.getState());
+    } else {
+      debugDrawCanvas.classList.add('hidden');
+      debugDrawCtx.clearRect(0, 0, debugDrawCanvas.width, debugDrawCanvas.height);
+    }
+
     // Memory round: after GO, hide the shape name and difficulty stars too
     if (isMemoryRound) {
       drawShapeHint.classList.add('hidden');
@@ -601,7 +637,7 @@
       drawProgressCircle.style.strokeDashoffset = `${offset.toFixed(2)}`;
       drawTimeLeft.textContent = `${Math.ceil(rem / 1000)}s`;
 
-      if (SkyPointer.DEBUG_MODE) {
+      if (shouldShowLiveLine()) {
         renderDebugDrawCanvas(SkyPointer.getState());
       }
 
@@ -623,7 +659,7 @@
     // Target shape guide (unless memory round)
     if (!isMemoryRound && activeTargetStrokes.length > 0) {
       debugDrawCtx.save();
-      debugDrawCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      debugDrawCtx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
       debugDrawCtx.lineWidth = 4;
       debugDrawCtx.setLineDash([8, 8]);
       for (const s of activeTargetStrokes) {
@@ -643,7 +679,7 @@
     // Recorded strokes
     debugDrawCtx.save();
     debugDrawCtx.strokeStyle = '#00f0ff';
-    debugDrawCtx.lineWidth = 5;
+    debugDrawCtx.lineWidth = 6;
     debugDrawCtx.lineCap = 'round';
     debugDrawCtx.lineJoin = 'round';
     for (const s of st.strokes) {
@@ -663,7 +699,7 @@
     debugDrawCtx.save();
     debugDrawCtx.fillStyle = st.penDown ? '#00f0ff' : '#f59e0b';
     debugDrawCtx.beginPath();
-    debugDrawCtx.arc(st.sx * w, st.sy * h, 9, 0, Math.PI * 2);
+    debugDrawCtx.arc(st.sx * w, st.sy * h, 10, 0, Math.PI * 2);
     debugDrawCtx.fill();
     debugDrawCtx.restore();
   }
@@ -714,7 +750,8 @@
   // Screen 6: Results (on round:results, then round:extras)
   function handleRoundResults(payload) {
     releaseWakeLock();
-    const round = payload.round ?? activeRound ?? 1;
+    const practice = Boolean(payload.practice || payload.round === 0 || isPracticeRound);
+    const round = payload.round ?? activeRound ?? (practice ? 0 : 1);
     activeRound = round;
     const shapeId = payload.shapeId ?? activeShapeId;
     const shapeName = payload.shapeName || activeShapeName || 'shape';
@@ -724,7 +761,13 @@
     const totalReal = realPlayers.length || results.length || 1;
     const mine = results.find((r) => r.playerId === playerId);
 
-    resRoundLabel.textContent = `ROUND ${round}`;
+    if (practice) {
+      resPracticeBanner.classList.remove('hidden');
+      resRoundLabel.textContent = 'PRACTICE ROUND';
+    } else {
+      resPracticeBanner.classList.add('hidden');
+      resRoundLabel.textContent = `ROUND ${round}`;
+    }
 
     const isValid = mine ? mine.valid !== false : false;
     if (!mine || !isValid) {
@@ -765,7 +808,7 @@
       }
     }
 
-    const roundPts = mine ? (mine.roundPoints ?? mine.points ?? 0) : 0;
+    const roundPts = practice ? 0 : mine ? (mine.roundPoints ?? mine.points ?? 0) : 0;
     const totalPts = mine ? (mine.totalPoints ?? roundPts) : 0;
     resPoints.textContent = `+${roundPts} · total ${totalPts}`;
 
