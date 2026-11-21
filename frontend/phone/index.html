@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SkySketch — Phone Controller</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="top-bar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-title">SKYSKETCH</span>
+        <span class="brand-sub">CONTROLLER</span>
+      </div>
+      <div class="status-pills">
+        <span id="motion-pill" class="pill pill-warn">Gyro: Off</span>
+        <span id="socket-pill" class="pill pill-muted">Offline / Sandbox</span>
+      </div>
+    </header>
+
+    <!-- Motion Setup & Recentre Bar (Always available for iOS permission + calibration) -->
+    <section class="motion-controls-card">
+      <div class="btn-row">
+        <button id="btn-enable-motion" type="button" class="btn btn-accent">
+          Enable Motion
+        </button>
+        <button id="btn-recentre" type="button" class="btn btn-secondary">
+          Recentre Dot
+        </button>
+        <button id="btn-clear-trail" type="button" class="btn btn-ghost">
+          Clear
+        </button>
+      </div>
+
+      <!-- Raw alpha / beta / gamma debug panel -->
+      <div class="debug-grid" aria-label="DeviceOrientation debug values">
+        <div class="debug-cell">
+          <span class="debug-label">ALPHA (Yaw)</span>
+          <span id="dbg-alpha" class="debug-val">--</span>
+        </div>
+        <div class="debug-cell">
+          <span class="debug-label">BETA (Pitch)</span>
+          <span id="dbg-beta" class="debug-val">--</span>
+        </div>
+        <div class="debug-cell">
+          <span class="debug-label">GAMMA (Roll)</span>
+          <span id="dbg-gamma" class="debug-val">--</span>
+        </div>
+        <div class="debug-cell">
+          <span class="debug-label">POS (X, Y)</span>
+          <span id="dbg-xy" class="debug-val">0.50, 0.50</span>
+        </div>
+      </div>
+      <div class="debug-meta">
+        <span id="dbg-status">Tap "Enable Motion" on iOS (HTTPS) or tilt phone to move dot.</span>
+        <label class="invert-toggle">
+          <input type="checkbox" id="chk-invert-x" /> Flip X
+        </label>
+        <label class="invert-toggle">
+          <input type="checkbox" id="chk-invert-y" /> Flip Y
+        </label>
+      </div>
+    </section>
+
+    <!-- Join Screen / Room Card -->
+    <section id="screen-join" class="card">
+      <h2 class="card-title">Join Room</h2>
+      <form id="join-form" class="join-form" autocomplete="off">
+        <div class="field-row">
+          <div class="field field-code">
+            <label for="input-code">Room Code</label>
+            <input
+              id="input-code"
+              type="text"
+              maxlength="4"
+              placeholder="ABCD"
+              autocapitalize="characters"
+              spellcheck="false"
+              required
+            />
+          </div>
+          <div class="field field-name">
+            <label for="input-name">Your Name</label>
+            <input
+              id="input-name"
+              type="text"
+              maxlength="16"
+              placeholder="Player 1"
+              required
+            />
+          </div>
+        </div>
+        <button id="btn-join" type="submit" class="btn btn-primary btn-block">
+          Join Game
+        </button>
+        <p id="join-msg" class="status-msg" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- Lobby Screen (shown after joining a room, while keeping test canvas below) -->
+    <section id="screen-lobby" class="card hidden">
+      <div class="lobby-header">
+        <div>
+          <span class="badge-room">ROOM <strong id="lobby-code">----</strong></span>
+          <span class="badge-player">You: <strong id="lobby-player-name">---</strong></span>
+        </div>
+        <span class="lobby-wait">Waiting for host...</span>
+      </div>
+      <div id="lobby-players" class="player-chips"></div>
+      <p class="hint-text">Practice tilting your phone below while waiting for Round 1!</p>
+    </section>
+
+    <!-- Round Banner (shown during active round) -->
+    <section id="screen-round-banner" class="card round-banner hidden">
+      <div class="round-info">
+        <span id="round-label" class="round-badge">ROUND 1</span>
+        <span id="round-shape-name" class="shape-name">CIRCLE</span>
+      </div>
+      <div class="timer-wrap">
+        <span id="round-timer" class="timer-text">10.0s</span>
+      </div>
+    </section>
+
+    <!-- Motion Test & Drawing Canvas (Always visible so foundation motion test works immediately) -->
+    <section class="canvas-card">
+      <div class="canvas-header">
+        <span id="canvas-mode-label" class="canvas-title">MOTION TEST CANVAS (YAW &rarr; X, PITCH &rarr; Y)</span>
+        <span id="sample-count" class="canvas-meta">0 pts</span>
+      </div>
+      <div class="canvas-container">
+        <canvas id="motion-canvas" width="600" height="600"></canvas>
+      </div>
+    </section>
+
+    <!-- Round Results Screen -->
+    <section id="screen-results" class="card hidden">
+      <div class="results-header">
+        <h2 id="results-title" class="card-title">Round 1 Results</h2>
+        <span id="results-winner-badge" class="winner-pill">Winner: ---</span>
+      </div>
+      <div id="my-result-box" class="my-score-box">
+        <div class="score-main">
+          <span class="score-label">YOUR SCORE</span>
+          <span id="my-score-val" class="score-big">--</span>
+          <span id="my-points-earned" class="points-badge">+0 pts</span>
+        </div>
+        <div class="score-subgrid">
+          <div>Accuracy: <strong id="my-acc-val">--</strong></div>
+          <div>Smoothness: <strong id="my-smooth-val">--</strong></div>
+        </div>
+        <blockquote id="my-ai-comment" class="ai-comment">
+          "Waiting for Snowflake judge..."
+        </blockquote>
+      </div>
+      <div id="results-list" class="leaderboard-list"></div>
+    </section>
+
+    <!-- Game End / Final Leaderboard Screen -->
+    <section id="screen-gameover" class="card hidden">
+      <h2 class="card-title">Final Leaderboard</h2>
+      <div id="final-leaderboard" class="leaderboard-list"></div>
+      <div id="final-stats" class="stats-box hidden"></div>
+      <button id="btn-play-again" type="button" class="btn btn-secondary btn-block">
+        Back to Lobby / New Room
+      </button>
+    </section>
+  </div>
+
+  <!-- Optional Socket.IO client (served by backend at /socket.io/socket.io.js when backend is running) -->
+  <script src="/socket.io/socket.io.js" onerror="window.__NO_SOCKET_IO__ = true;"></script>
+  <script src="app.js"></script>
+</body>
+</html>
