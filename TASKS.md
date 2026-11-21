@@ -4,7 +4,7 @@ Format: `- [ ] T# | seat | folder | task | status/notes`
 Claim a task by putting your seat name on it, commit + push straight away so others see it.
 
 ## Seats and timeline
-See PLAN.md. Freeze demo 15:30, draft 17:30, final 18:00.
+See PLAN.md. Freeze demo 17:00, draft 17:30, final 18:00.
 
 ## Batch 1 (start now, all in parallel, about 60 min each)
 - [ ] T1 | claude66 | backend/ | Node + Express + socket.io server on port 3000: serves frontend/phone at `/` and frontend/host at `/host`; rooms with 4-letter codes; implements every event in the PLAN.md contract with an in-memory game loop (3 rounds, 10 s each, results after all submit or timeout); `scoreLocal.js` with the PLAN.md scoring maths; `.env.example`; README run steps | todo
@@ -17,7 +17,7 @@ See PLAN.md. Freeze demo 15:30, draft 17:30, final 18:00.
 - [ ] T6 | claude66 | backend/ | Wire ai/snowflake.js into the game loop with local fallback | todo
 - [ ] T7 | neon | all | End-to-end test with 3 phones over the Cloudflare tunnel, fix list in TASKS.md | todo
 
-## Batch 3: plan v2 MUST tasks (21 Nov 14:20, before the 15:30 freeze)
+## Batch 3: plan v2 MUST tasks (21 Nov 14:20, before the 17:00 freeze)
 Read PLAN.md, then plan/SHARED.md and your seat file. Where these differ from T1 to T7, these win. Running late? Use the cut order in plan/SHARED.md §7.
 - [ ] T8 | claude66 | backend/ | Server v2: socket.io websocket only, static routes, /health, no-vowel room codes, TEST games, every SHARED §4 event incl. host:next, host:again, host:kick, host:bots, round:progress, early round end (plan/backend.md §1-2) | todo
 - [ ] T9 | claude66 | backend/ | scoreLocal.js v2 (SHARED §5: strokes, onLine, coverage, guess, D_MAX 0.35) + scoreRoundLocal + tests 1 to 8 (plan/backend.md §9) | todo

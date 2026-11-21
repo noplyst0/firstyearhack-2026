@@ -1,6 +1,6 @@
 # SKYSKETCH v2: SHARED BRIEF
 Read this, then your seat file in plan/.
-FirstYearHack 2026 · Retro Remix track + Best Use of Snowflake · Freeze 15:30 · Draft 17:30 · Final 18:00
+FirstYearHack 2026 · Retro Remix track + Best Use of Snowflake · Freeze 17:00 · Draft 17:30 · Final 18:00
 This replaces plan v1. Sections 0 and 4 are also in PLAN.md (copied to CLAUDE.md and AGENTS.md). If they ever differ, PLAN.md wins.
 
 ## 0. What changed from v1 (patch anything you already built)
@@ -32,7 +32,7 @@ A shape appears on the big screen. Everyone scans a QR code and joins on their p
 - Never edit another seat's folder: write requests in TASKS.md.
 - Secrets only in backend/.env (never committed).
 - ai/ imports the maths from backend/scoreLocal.js and never copies it.
-- After the 15:30 freeze, stretch work (plan/stretch.md) goes on `<your branch>-stretch`, for example claude-backend-stretch, so fixes on your seat branch can still merge without it.
+- After the 17:00 freeze, stretch work (plan/stretch.md) goes on `<your branch>-stretch`, for example claude-backend-stretch, so fixes on your seat branch can still merge without it.
 
 ## 3. Rounds and rules
 - 3 rounds: circle 10 s, triangle 12 s, star 15 s. 5 rounds: circle 10, triangle 12, square 12, star 15, heart 15. The last round is the memory round.
@@ -77,7 +77,7 @@ round:results = { round, shapeId, shapeName, targetNorm: [[x,y] x64], scorer: "s
 - comment is null for featured players (top 3 and last place). Their AI comment arrives in round:extras within 3.5 s, or a canned line if the AI is slow.
 - targetStrokes and targetPoints use 0..1 canvas units (y down). targetNorm and pathStrokes are normalised (centre 0,0, RMS radius 1).
 
-Stretch events (branches after 15:30 only): host:customShape { code, name, strokes } ack { ok, shapeId, guess } · host:snapshot { code, round, playerId, png } · player:shake { code, playerId } · room:shake { count, total, open }.
+Stretch events (branches after 17:00 only): host:customShape { code, name, strokes } ack { ok, shapeId, guess } · host:snapshot { code, round, playerId, png } · player:shake { code, playerId } · room:shake { count, total, open }.
 
 ## 5. Scoring maths (backend/scoreLocal.js exports these; Snowflake must match within 0.1)
 ```js
@@ -162,8 +162,8 @@ Round shapes: 1 circle, 2 triangle, 3 square, 4 star, 5 heart. Decoys, used only
 - 13:50-14:35 build the MUST items (TASKS.md batch 3).
 - 14:35-14:55 merge, then end-to-end on local scoring with 2 phones over the tunnel.
 - 14:55-15:15 Snowflake scoring, guesses, comments and percentiles; failure drill; tune D_MAX.
-- 15:15-15:30 3 phones × 3 rounds with no errors, deploy Render, tag demo-v1. FREEZE.
+- 15:15-17:00 3 phones × 3 rounds with no errors, deploy Render, tag demo-v1. FREEZE.
 
-After 15:30, stretch branches only, in this order: room view, judge's shape, shake to clear, vision verdict.
+After 17:00, stretch branches only, in this order: room view, judge's shape, shake to clear, vision verdict.
 
 Cut order if you're late (top of the list goes first): percentiles, AI comments (canned only), memory round, guess line, judging counts, Snowflake ghosts (keep the generated ones). Never cut: join, hold to draw, local scoring, reveal, leaderboard.

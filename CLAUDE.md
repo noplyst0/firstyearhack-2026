@@ -3,7 +3,7 @@
 Every AI reads this first, then `plan/SHARED.md` and its own seat file in `plan/`, then TASKS.md, then `git log --oneline -20`. Update this file in the same commit when the plan or contract changes. CLAUDE.md and AGENTS.md are copies of this file: change all three together.
 
 ## Plan v2 (21 Nov, 14:20)
-Full spec: `plan/SHARED.md` (everyone), then your seat file (`plan/backend.md`, `plan/phone.md`, `plan/host.md`, `plan/ai.md`, `plan/spare.md`). After the 15:30 freeze: `plan/stretch.md`. Lead checklist: `pitch/LEAD.md`. MUST tasks: TASKS.md batch 3.
+Full spec: `plan/SHARED.md` (everyone), then your seat file (`plan/backend.md`, `plan/phone.md`, `plan/host.md`, `plan/ai.md`, `plan/spare.md`). After the 17:00 freeze: `plan/stretch.md`. Lead checklist: `pitch/LEAD.md`. MUST tasks: TASKS.md batch 3.
 
 ### What changed from v1 (patch anything you already built)
 1. Hold to draw: points are recorded only while a finger is on the phone screen. Lifting and pressing again starts a new stroke, so a drawing is a list of strokes. No clamp, no trim. The phone submits when the timer ends.
@@ -76,7 +76,7 @@ Server to clients:
 - comment is null for featured players (top 3 and last place). Their AI comment arrives in round:extras within 3.5 s, or a canned line if the AI is slow.
 - targetStrokes and targetPoints use 0..1 canvas units (y down). targetNorm and pathStrokes are normalised (centre 0,0, RMS radius 1).
 
-Stretch events (branches after 15:30 only): `host:customShape { code, name, strokes }` ack `{ ok, shapeId, guess }` · `host:snapshot { code, round, playerId, png }` · `player:shake { code, playerId }` · `room:shake { count, total, open }`.
+Stretch events (branches after 17:00 only): `host:customShape { code, name, strokes }` ack `{ ok, shapeId, guess }` · `host:snapshot { code, round, playerId, png }` · `player:shake { code, playerId }` · `room:shake { count, total, open }`.
 
 Shapes (`ai/shapes.json`): plan/SHARED.md §6 (5 round shapes and 10 decoys; strokes in 0..1 plus 64 normalised points each).
 
@@ -94,7 +94,7 @@ Shapes (`ai/shapes.json`): plan/SHARED.md §6 (5 round shapes and 10 decoys; str
 - Work on your own branch, push often. Only Faizan merges into main. Pull main after every merge.
 - Never edit another seat's folder. Need a change there? Write it in TASKS.md.
 - Secrets (Snowflake login) go in `backend/.env`, never committed. `.env.example` lists the variable names.
-- Freeze a working demo by 15:30. Draft submission 17:30, final 18:00.
+- Freeze a working demo by 17:00. Draft submission 17:30, final 18:00.
 - After the freeze, stretch work goes on `<your branch>-stretch` (plan/stretch.md).
 
 ## Presenters

@@ -24,10 +24,10 @@
 - Render's free tier sleeps after 15 min with no traffic and takes about a minute to wake, so open /host 5 minutes before any demo.
 - Quick tunnels cap at 200 in-flight requests. That's fine for a table demo; use Render for a whole room.
 
-## 15:30
+## 17:00
 - Tag demo-v1 and demo from the tag. Stretch features only on `-stretch` branches, merged only if safe.
 
-## 15:30 to 17:00: soft launch
+## 17:00 to 17:00: soft launch
 - Take a laptop round other teams and play one round with each. Count players and drawings for the pitch.
 - This also fills Snowflake with real ghosts and percentiles, and gives you real drawings to tune D_MAX.
 
