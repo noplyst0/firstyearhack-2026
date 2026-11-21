@@ -305,7 +305,7 @@ function hasRoomViewData() {
   return Boolean(roomViewData && (roomViewData.heat?.length || roomViewData.crowd?.path?.length));
 }
 
-function roomViewHeadline() {
+function crowdDrawingLines() {
   const validReal = (result?.results || []).filter(p => !p.isBot && p.valid);
   const computedAlone = validReal.length
     ? validReal.reduce((sum, p) => sum + Number(p.score || 0), 0) / validReal.length
@@ -317,14 +317,18 @@ function roomViewHeadline() {
     ? Number(roomViewData.crowd.score)
     : null;
 
-  const parts = [];
-  if (alone != null) parts.push("Alone " + percentage(alone));
-  if (together != null) parts.push("Together " + percentage(together));
-  let headline = parts.join("  ·  ");
-  if (alone != null && together != null && together > alone + 0.5) {
-    headline += "  (+" + (together - alone).toFixed(1) + "%!)";
+  const avg = alone != null ? Math.round(alone) : null;
+  const blended = together != null ? Math.round(together) : null;
+  const line1 = avg != null ? "Average player: " + avg + "%" : "";
+  let line2 = "";
+  if (blended != null && avg != null) {
+    const diff = blended - avg;
+    const sign = diff >= 0 ? "+" : "";
+    line2 = "Everyone's drawings blended: " + blended + "% (" + sign + diff + ")";
+  } else if (blended != null) {
+    line2 = "Everyone's drawings blended: " + blended + "%";
   }
-  return headline || "Collective accuracy heatmap";
+  return { line1, line2 };
 }
 
 function updateRoomViewUI() {
@@ -338,9 +342,11 @@ function updateRoomViewUI() {
     return;
   }
 
-  const headline = roomViewHeadline();
-  byId("room-view-teaser-stats").textContent = headline;
-  byId("room-view-headline").textContent = headline;
+  const { line1, line2 } = crowdDrawingLines();
+  byId("room-view-avg").textContent = line1;
+  byId("room-view-blended").textContent = line2;
+  byId("room-view-headline").hidden = !line1 && !line2;
+  byId("room-view-teaser-stats").textContent = [line1, line2].filter(Boolean).join(" · ") || "All your drawings blended into one";
   byId("room-view-verdict").textContent = roomViewData.verdict || "";
   const isPractice = Boolean(result?.practice || result?.round === 0);
   const roundLabel = isPractice ? "Practice round" : "Round " + result?.round;

@@ -79,11 +79,11 @@
       <div id="spotlight" class="card"><strong id="performer"></strong><span id="score"></span><div id="guess-pill" class="guess-pill" hidden></div><p id="quote"></p></div>
     </section>
     <section id="results" hidden>
-      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><div class="controls"><button id="room-view-btn" hidden>❄ Room View</button><button id="next">Next round →</button></div></div>
+      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><div class="controls"><button id="room-view-btn" hidden>❄ Crowd drawing</button><button id="next">Next round →</button></div></div>
       <div id="practice-results-note" class="banner-practice" hidden>✦ Practice round · Scores don’t count — Round 1 starts next!</div>
       <div id="room-view-teaser" class="card room-view-teaser" hidden>
         <div class="room-view-teaser-copy">
-          <strong>❄ Room View</strong>
+          <strong>❄ Crowd drawing</strong>
           <span id="room-view-teaser-stats"></span>
         </div>
         <button id="room-view-open" type="button">Full screen ↗</button>
@@ -91,10 +91,10 @@
       <div id="rankings"><h2>Round standings</h2><ol id="rank-list"></ol></div>
       <p id="ghost-summary"></p>
     </section>
-    <section id="room-view-screen" aria-label="Room View" hidden>
+    <section id="room-view-screen" aria-label="Crowd drawing" hidden>
       <div class="room-view-topbar">
         <div class="room-view-badge">
-          <strong>❄ ROOM VIEW</strong>
+          <strong>❄ CROWD DRAWING</strong>
           <span id="room-view-shape"></span>
         </div>
         <div class="controls">
@@ -103,14 +103,15 @@
         </div>
       </div>
       <div class="room-view-canvas">
-        <svg id="room-view-svg" viewBox="-160 -160 320 320" role="img" aria-label="Room heatmap and crowd average drawing"></svg>
+        <svg id="room-view-svg" viewBox="-160 -160 320 320" role="img" aria-label="Target shape and blended crowd drawing"></svg>
       </div>
       <div id="room-view-hud" class="card room-view-hud">
-        <p id="room-view-headline" class="room-view-headline"></p>
+        <div id="room-view-headline" class="room-view-headline">
+          <span id="room-view-avg"></span>
+          <span id="room-view-blended"></span>
+        </div>
         <div class="room-view-legend">
-          <span><i class="swatch swatch-hit"></i>Everyone hit</span>
-          <span><i class="swatch swatch-miss"></i>Everyone missed</span>
-          <span><i class="swatch swatch-crowd"></i>Crowd average line</span>
+          <span><i class="swatch swatch-crowd"></i>All your drawings blended into one</span>
         </div>
         <p id="room-view-verdict" class="room-view-verdict"></p>
       </div>
