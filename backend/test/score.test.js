@@ -7,22 +7,24 @@ const { library, byId } = require('../shapes');
 
 // triangle and square are stored as bare vertices (under 8 raw points); densify those like a phone would
 const dense = (strokes) => (strokes.flat().length >= C.MIN_RAW_POINTS ? strokes : strokes.map((st) => S.resample(st, 200)));
-const score = (strokes, shapeId) => {
+const score = (strokes, shapeId) => {  // attempt (64 points) against the 256-point target
   const d = S.processDrawing(strokes);
   if (!d.valid) return null;
   const att = d.pathStrokes.flat();
-  return { ...S.scoreAgainst(att, byId(shapeId).norm, C.D_MAX), guess: S.guess(att, library, shapeId, C.D_MAX) };
+  return { ...S.scoreAgainst(att, S.targetPoints(byId(shapeId)), C.D_MAX), guess: S.guess(att, library, shapeId, C.D_MAX) };
 };
 const gauss = () => Math.sqrt(-2 * Math.log(Math.random() || 1e-9)) * Math.cos(2 * Math.PI * Math.random());
 const circlePts = (n = 200, cx = 0.5, cy = 0.5, r = 0.4) =>
   Array.from({ length: n }, (_, i) => [cx + r * Math.cos((2 * Math.PI * i) / (n - 1)), cy + r * Math.sin((2 * Math.PI * i) / (n - 1))]);
 
 const self = {};
-test('1. every round shape scored against itself is at least 98', () => {
+// With 256-point targets a perfect 64-point trace tops out at about 92 to 95 (64 points can't cover all 256),
+// so test 1 checks at least 90 instead of 98. In exchange the score no longer depends on where you start.
+test('1. every round shape scored against itself is at least 90', () => {
   for (const s of library.filter((x) => x.round)) {
     const r = score(dense(s.strokes), s.id);
     self[s.id] = r.accuracy;
-    assert.ok(r.accuracy >= 98, `${s.name} self score ${r.accuracy}`);
+    assert.ok(r.accuracy >= 90, `${s.name} self score ${r.accuracy}`);
   }
 });
 
@@ -104,5 +106,25 @@ test('scoreRoundLocal returns one row per valid drawing', () => {
     { attemptId: 'b', valid: false, isBot: false, pathStrokes: null },
   ], 1, library);
   assert.strictEqual(rows.length, 1);
-  assert.ok(rows[0].score >= 98 && rows[0].rank === 1 && rows[0].guess.shapeId === 1);
+  assert.ok(rows[0].score >= 90 && rows[0].rank === 1 && rows[0].guess.shapeId === 1);
+});
+
+test('a perfect circle starting at 8 different angles scores within 2 points of itself', () => {
+  const scores = [];
+  for (let k = 0; k < 8; k++) {
+    const ph = (2 * Math.PI * k) / 8 + 0.05 * k; // includes starts that fall between the old 64 target points
+    const pts = Array.from({ length: 300 }, (_, i) => {
+      const a = ph + (2 * Math.PI * i) / 299;
+      return [0.5 + 0.4 * Math.cos(a), 0.5 + 0.4 * Math.sin(a)];
+    });
+    scores.push(score([pts], 1).accuracy);
+  }
+  const spread = Math.max(...scores) - Math.min(...scores);
+  console.log(`   perfect circle, 8 starts: ${scores.map((s) => s.toFixed(1)).join(' ')} (spread ${spread.toFixed(2)})`);
+  assert.ok(spread <= 2, 'spread ' + spread);
+});
+
+test('targets score on 256 points built from strokes, attempts stay at 64', () => {
+  assert.strictEqual(S.targetPoints(byId(1)).length, 256);
+  assert.strictEqual(S.processDrawing([circlePts()]).pathStrokes.flat().length, 64);
 });

@@ -1,6 +1,7 @@
 // Scoring maths (SHARED §5). ai/ imports this file, never copies it. Snowflake must match within 0.1.
 const C = require('./constants');
 const N = C.N;
+const TARGET_N = 256; // target scoring points; attempts stay at N (64)
 
 const len = (s) => {
   let L = 0;
@@ -65,12 +66,29 @@ function scoreAgainst(att, tgt, dMax = C.D_MAX) {
   return { accuracy: pct((d1 + d2) / 2), onLine: pct(d1), coverage: pct(d2) };
 }
 
+// A target's scoring points: its strokes resampled to 256 points and normalised, flat.
+// Built from shape.strokes (never shapes.json norm) so a 64-point attempt can't line up with, or fall between,
+// a 64-point target and swing the score by up to 14 points depending on where the player started.
+// Snowflake TARGET_POINTS must hold these same 256 points.
+const targetCache = new WeakMap();
+function targetPoints(shape) {
+  let pts = targetCache.get(shape);
+  if (!pts) {
+    const rs = resampleStrokes(shape.strokes, TARGET_N);
+    const norm = rs && normaliseStrokes(rs);
+    if (!norm) throw new Error(`shape ${shape.id} has no usable strokes`);
+    pts = norm.flat();
+    targetCache.set(shape, pts);
+  }
+  return pts;
+}
+
 // best match in the library (sorted by id ascending; custom shapes 1000+ only count in their own round)
 function guess(att, library, roundShapeId, dMax = C.D_MAX) {
   let best = null;
   for (const s of library) {
     if (s.id >= 1000 && s.id !== roundShapeId) continue;
-    const a = scoreAgainst(att, s.norm, dMax).accuracy;
+    const a = scoreAgainst(att, targetPoints(s), dMax).accuracy;
     if (!best || a > best.score) best = { shapeId: s.id, label: s.label, score: a };
   }
   return best;
@@ -111,7 +129,7 @@ function scoreRoundLocal(attempts, shapeId, library, dMax = C.D_MAX) {
   for (const a of attempts) {
     if (!a.valid || !a.pathStrokes) continue;
     const att = a.pathStrokes.flat();
-    const s = scoreAgainst(att, target.norm, dMax);
+    const s = scoreAgainst(att, targetPoints(target), dMax);
     rows.push({
       attemptId: a.attemptId, isBot: !!a.isBot, valid: true, submittedAt: a.submittedAt,
       accuracy: s.accuracy, onLine: s.onLine, coverage: s.coverage, score: round1(s.accuracy),
@@ -124,6 +142,6 @@ function scoreRoundLocal(attempts, shapeId, library, dMax = C.D_MAX) {
 }
 
 module.exports = {
-  N, len, resample, resampleStrokes, normaliseStrokes, avgNearest, scoreAgainst, guess,
+  N, TARGET_N, targetPoints, len, resample, resampleStrokes, normaliseStrokes, avgNearest, scoreAgainst, guess,
   round1, processDrawing, rankAttempts, scoreRoundLocal,
 };

@@ -1,7 +1,7 @@
 // Shape library. Loads ai/shapes.json; until it lands, builds the same shapes inline (plan/ai.md §3).
 const fs = require('fs');
 const path = require('path');
-const { resampleStrokes, normaliseStrokes } = require('./scoreLocal');
+const { resampleStrokes, normaliseStrokes, targetPoints } = require('./scoreLocal');
 
 const RAW = 400;
 const TAU = 2 * Math.PI;
@@ -79,6 +79,8 @@ function loadLibrary() {
 }
 
 const { library, source } = loadLibrary();
+// build every target's 256 scoring points once at startup (norm stays 64 points, for display and ghosts)
+for (const s of library) targetPoints(s);
 const byId = (id) => library.find((s) => s.id === id) || null;
 
 // SHARED §3: 3 rounds circle/triangle/star, 5 rounds add square and heart. Last round is the memory round.
