@@ -260,7 +260,7 @@
     if (isDown) {
       screens.draw.classList.add('pen-held');
       drawPenTitle.textContent = 'DRAWING...';
-      drawPenSub.textContent = 'Move your whole arm, not just your wrist · Lift it to stop';
+      drawPenSub.textContent = 'Small, steady wrist movements · Lift your thumb to stop';
     } else {
       screens.draw.classList.remove('pen-held');
       drawPenTitle.textContent = 'HOLD TO DRAW';
