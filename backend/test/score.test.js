@@ -156,3 +156,28 @@ test('targetNormStrokes keeps strokes apart for multi-stroke shapes', () => {
   assert.strictEqual(st.length, 2);
   assert.strictEqual(st.flat().length, 256);
 });
+
+test('room view: crowd of wobbly circles beats the average player; heat is highest where everyone missed', () => {
+  const shape = byId(1);
+  const paths = [], scores = [];
+  for (let k = 0; k < 6; k++) {
+    // each player misses a different side, and everyone skips the same 90 degree arc (angles 0..pi/2)
+    const pts = Array.from({ length: 200 }, (_, i) => {
+      const a = Math.PI / 2 + (1.5 * Math.PI * i) / 199;
+      const r = 0.4 + 0.06 * Math.cos(a - k);
+      return [0.5 + r * Math.cos(a), 0.5 + r * Math.sin(a)];
+    });
+    const d = S.processDrawing([pts]);
+    paths.push(d.pathStrokes.flat());
+    scores.push(S.round1(S.scoreAgainst(d.pathStrokes.flat(), S.targetPoints(shape)).accuracy));
+  }
+  const v = S.roomViewLocal(shape, paths, scores);
+  assert.strictEqual(v.heat.length, 256);
+  assert.strictEqual(v.crowd.path.length, 256);
+  const tgt = S.targetPoints(shape);
+  const hot = tgt.findIndex((_, j) => v.heat[j] === 1);
+  const ang = (Math.atan2(tgt[hot][1], tgt[hot][0]) + 2 * Math.PI) % (2 * Math.PI);
+  assert.ok(ang < Math.PI / 2 + 0.2, 'hottest point is in the arc nobody drew, angle ' + ang.toFixed(2));
+  console.log(`   room view: alone ${v.alone}, together ${v.crowd.score}`);
+  assert.strictEqual(S.roomViewLocal(shape, paths.slice(0, 1), scores), null, 'needs 2 drawings');
+});

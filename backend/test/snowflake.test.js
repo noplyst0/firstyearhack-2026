@@ -36,6 +36,7 @@ test('slow snowflake -> local scorer, AI comment cleaned, stats from snowflake',
     assert.strictEqual(res.practice, true);
     const ex = await extras;
     assert.strictEqual(ex.comments[playerId], 'What a lovely wobbly circle, truly');
+    assert.strictEqual((await (await fetch(url + '/health')).json()).snowflake, 'ok', 'failing calls leave the connection up');
     const end = ev(host, 'game:end');
     for (const r of [1, 2, 3]) {
       await call(host, 'host:next', { code });

@@ -47,7 +47,9 @@ async function call(name, args, ms) {
   if (!mod || state !== 'ok') throw new Error('snowflake down');
   if (typeof mod[name] !== 'function') throw new Error(`ai/snowflake.js has no ${name}()`);
   const p = Promise.resolve().then(() => mod[name](args));
-  p.catch((e) => { state = 'down'; lastError = e.message; log(`${name} failed:`, e.message); });
+  // one failing function (e.g. comments() while AI_COMPLETE is blocked) must not take scoring down with it:
+  // only init() and ping() decide whether the connection is up
+  p.catch((e) => { lastError = `${name}: ${e.message}`; log(`${name} failed:`, e.message); });
   try {
     const r = await withTimeout(p, ms, name);
     state = 'ok';

@@ -145,7 +145,38 @@ function scoreRoundLocal(attempts, shapeId, library, dMax = C.D_MAX) {
     ({ attemptId, accuracy, onLine, coverage, score, rank, roundPoints, guess: g }));
 }
 
+// Room View (V3), same idea as ai/sql/room_view.sql: for each of the 256 target points, every drawing's nearest
+// point (MIN_BY). heat = average miss distance per target point scaled to 0..1 (1 = the room missed it most);
+// crowd = the average of those nearest points, a consensus line, scored like a drawing; alone = average room score.
+// paths: [flat 64 normalised points] for each valid real drawing. Needs at least 2.
+function roomViewLocal(shape, paths, scores, dMax = C.D_MAX) {
+  if (!paths || paths.length < 2) return null;
+  const tgt = targetPoints(shape);
+  const sumD = new Array(tgt.length).fill(0), cx = new Array(tgt.length).fill(0), cy = new Array(tgt.length).fill(0);
+  for (const att of paths) {
+    tgt.forEach((t, j) => {
+      let best = Infinity, bx = 0, by = 0;
+      for (const p of att) { const d = Math.hypot(p[0] - t[0], p[1] - t[1]); if (d < best) { best = d; bx = p[0]; by = p[1]; } }
+      sumD[j] += best; cx[j] += bx; cy[j] += by;
+    });
+  }
+  const n = paths.length;
+  const miss = sumD.map((d) => d / n);
+  const max = Math.max(...miss) || 1;
+  const r3 = (v) => Math.round(v * 1000) / 1000, r4 = (v) => Math.round(v * 10000) / 10000;
+  const path = cx.map((x, j) => [r4(x / n), r4(cy[j] / n)]);
+  // split the consensus line by the target's strokes so it can be scored and drawn without bridges
+  const strokes = [];
+  let k = 0;
+  for (const s of targetNormStrokes(shape)) { strokes.push(path.slice(k, k + s.length)); k += s.length; }
+  const d = processDrawing(strokes, path.length);
+  const score = d.valid ? round1(scoreAgainst(d.pathStrokes.flat(), tgt, dMax).accuracy) : 0;
+  const alone = scores.length ? round1(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  return { heat: miss.map((m) => r3(m / max)), crowd: { path, score }, alone };
+}
+
 module.exports = {
+  roomViewLocal,
   N, TARGET_N, targetPoints, targetNormStrokes, len, resample, resampleStrokes, normaliseStrokes, avgNearest, scoreAgainst, guess,
   round1, processDrawing, rankAttempts, scoreRoundLocal,
 };

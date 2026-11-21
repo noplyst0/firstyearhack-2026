@@ -125,7 +125,15 @@ test('join rules, ghosts, 3 rounds, duplicate + missing submit, extras, game end
   assert.strictEqual((await r2).shapeId, 2);
   await submit(a, code, ja.playerId, 2, circle());
   await submit(b, code, jb.playerId, 2, line());
+  drain(host, 'round:extras');
   const res2 = await once(host, 'round:results');
+  const ex2 = await once(host, 'round:extras');
+  assert.strictEqual(ex2.heat.length, 256, 'room view heat on 256 points');
+  assert.ok(ex2.heat.every((h) => h >= 0 && h <= 1) && ex2.heat.includes(1));
+  assert.strictEqual(ex2.crowd.path.length, 256);
+  assert.ok(ex2.crowd.score >= 0 && ex2.crowd.score <= 100);
+  const avg = res2.results.filter((r) => r.rank).reduce((t, r) => t + r.score, 0) / 2;
+  assert.strictEqual(ex2.alone, Math.round(avg * 10) / 10);
   assert.strictEqual(res2.results.filter((r) => r.rank).length, 2);
   assert.strictEqual(res2.results.find((r) => r.name === 'Asim').totalPoints, 600);
   assert.strictEqual(res2.results.find((r) => r.name === 'Faizan').totalPoints, 200);

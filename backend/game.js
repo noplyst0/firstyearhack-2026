@@ -324,11 +324,14 @@ function createGame(io, opts = {}) {
       };
     });
 
-    let aiComments = null, sfPct = null;
+    const paths = ranked.map((a) => a.pathStrokes.flat());
+    const roomScores = ranked.map((a) => S.round1(a.accuracy));
+    let aiComments = null, sfPct = null, sfRoom = null;
     if (sf.enabled) {
-      [aiComments, sfPct] = await Promise.all([
+      [aiComments, sfPct, sfRoom] = await Promise.all([
         items.length ? sf.call('comments', items.map(({ attemptId, prompt }) => ({ attemptId, prompt })), SF.comments).catch(() => null) : null,
         ranked.length ? sf.call('percentiles', { shapeId: shape.id, gameId: room.gameId, round }, SF.percentiles).catch(() => null) : null,
+        paths.length >= 2 ? sf.call('roomView', { gameId: room.gameId, round, shapeId: shape.id }, SF.roomView).catch(() => null) : null,
       ]);
     } else {
       await new Promise((r) => setTimeout(r, T.extrasDelayMs));
@@ -352,9 +355,34 @@ function createGame(io, opts = {}) {
     }
     if (!Object.keys(percentiles).length) percentiles = localPct;
 
-    room.extras = { round, comments, percentiles };
+    let sfView = null;
+    try { sfView = cleanRoomView(sfRoom, shape, roomScores); } catch (e) { log(`[${room.code}] bad roomView from snowflake: ${e.message}`); }
+    const view = sfView || S.roomViewLocal(shape, paths, roomScores, C.D_MAX);
+    const viewSource = sfView ? 'snowflake' : view ? 'local' : 'none';
+    room.extras = { round, comments, percentiles, ...(view || {}) };
     emit(room, 'round:extras', room.extras, false);
-    log(`[${room.code}] round ${round} extras: ${aiCount}/${items.length} AI comments, ${Object.keys(percentiles).length} percentiles, ${Date.now() - started} ms`);
+    log(`[${room.code}] round ${round} extras: ${aiCount}/${items.length} AI comments, ${Object.keys(percentiles).length} percentiles, room view ${viewSource}, ${Date.now() - started} ms`);
+  }
+
+  // accept roomView() as { heat: [256], crowd: { path, score } | [[x,y]...], alone }; anything broken -> null (local takes over)
+  function cleanRoomView(v, shape, roomScores) {
+    if (!v || typeof v !== 'object' || !Array.isArray(v.heat) || !v.heat.length) return null;
+    const heat = v.heat.map(Number);
+    if (!heat.every(Number.isFinite)) return null;
+    const max = Math.max(...heat) || 1;
+    let crowd = null;
+    const path = Array.isArray(v.crowd) ? v.crowd : v.crowd && Array.isArray(v.crowd.path) ? v.crowd.path : null;
+    if (path && path.every((p) => Array.isArray(p) && Number.isFinite(+p[0]) && Number.isFinite(+p[1]))) {
+      let score = v.crowd && Number.isFinite(Number(v.crowd.score)) ? S.round1(Number(v.crowd.score)) : null;
+      if (score === null) {
+        const d = S.processDrawing([path.map((p) => [+p[0], +p[1]])], path.length);
+        score = d.valid ? S.round1(S.scoreAgainst(d.pathStrokes.flat(), S.targetPoints(shape), C.D_MAX).accuracy) : 0;
+      }
+      crowd = { path: path.map((p) => [+p[0], +p[1]]), score };
+    }
+    const alone = Number.isFinite(Number(v.alone)) && v.alone !== null ? S.round1(Number(v.alone))
+      : roomScores.length ? S.round1(roomScores.reduce((a, b) => a + b, 0) / roomScores.length) : null;
+    return { heat: heat.map((h) => Math.round((h / max) * 1000) / 1000), crowd, alone };
   }
 
   function next(room) {

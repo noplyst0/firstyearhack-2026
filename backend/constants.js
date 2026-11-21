@@ -28,6 +28,6 @@ module.exports = {
     durationScale: 1, // tests shrink round times
   },
 
-  SF_MS: { score: 4000, comments: 3000, percentiles: 1500, extras: 3500, ghosts: 2000, stats: 2000, ping: 45000 },
+  SF_MS: { score: 4000, comments: 3000, percentiles: 1500, roomView: 3000, extras: 3500, ghosts: 2000, stats: 2000, ping: 45000 },
   PERCENTILE_MIN_POOL: 20,
 };
