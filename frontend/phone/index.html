@@ -2,175 +2,249 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>SkySketch — Phone Controller</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>SkySketch</title>
+  <link rel="stylesheet" href="phone.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <!-- Top Header -->
-    <header class="top-bar">
-      <div class="brand">
-        <span class="brand-dot"></span>
-        <span class="brand-title">SKYSKETCH</span>
-        <span class="brand-sub">CONTROLLER</span>
-      </div>
-      <div class="status-pills">
-        <span id="motion-pill" class="pill pill-warn">Gyro: Off</span>
-        <span id="socket-pill" class="pill pill-muted">Offline / Sandbox</span>
-      </div>
-    </header>
+  <!-- Screen 9: Connection lost banner -->
+  <div id="reconnect-banner" class="reconnect-banner hidden" role="status" aria-live="assertive">
+    Reconnecting...
+  </div>
 
-    <!-- Motion Setup & Recentre Bar (Always available for iOS permission + calibration) -->
-    <section class="motion-controls-card">
-      <div class="btn-row">
-        <button id="btn-enable-motion" type="button" class="btn btn-accent">
-          Enable Motion
-        </button>
-        <button id="btn-recentre" type="button" class="btn btn-secondary">
-          Recentre Dot
-        </button>
-        <button id="btn-clear-trail" type="button" class="btn btn-ghost">
-          Clear
-        </button>
+  <!-- Landscape orientation hint (mobile only) -->
+  <div id="landscape-hint" class="landscape-hint">
+    <div class="landscape-box">
+      <div class="landscape-icon">&#128241;</div>
+      <p>Turn your phone upright</p>
+    </div>
+  </div>
+
+  <!-- Optional ?debug=1 live telemetry bar -->
+  <div id="debug-hud" class="debug-hud hidden">
+    <span id="debug-readout">yaw: 0.0° | pitch: 0.0° | x: 0.50 | y: 0.50</span>
+  </div>
+
+  <main class="phone-app">
+    <!-- Screen 1: Join -->
+    <section id="screen-join" class="screen">
+      <div class="brand-header">
+        <h1 class="brand-logo">SKYSKETCH</h1>
+        <p class="brand-tagline">Your phone is the air brush</p>
       </div>
 
-      <!-- Raw alpha / beta / gamma debug panel -->
-      <div class="debug-grid" aria-label="DeviceOrientation debug values">
-        <div class="debug-cell">
-          <span class="debug-label">ALPHA (Yaw)</span>
-          <span id="dbg-alpha" class="debug-val">--</span>
+      <form id="join-form" class="card join-card" autocomplete="off" novalidate>
+        <div id="url-code-pill" class="url-code-pill hidden">
+          Room <strong id="url-code-text">----</strong>
         </div>
-        <div class="debug-cell">
-          <span class="debug-label">BETA (Pitch)</span>
-          <span id="dbg-beta" class="debug-val">--</span>
-        </div>
-        <div class="debug-cell">
-          <span class="debug-label">GAMMA (Roll)</span>
-          <span id="dbg-gamma" class="debug-val">--</span>
-        </div>
-        <div class="debug-cell">
-          <span class="debug-label">POS (X, Y)</span>
-          <span id="dbg-xy" class="debug-val">0.50, 0.50</span>
-        </div>
-      </div>
-      <div class="debug-meta">
-        <span id="dbg-status">Tap "Enable Motion" on iOS (HTTPS) or tilt phone to move dot.</span>
-        <label class="invert-toggle">
-          <input type="checkbox" id="chk-invert-x" /> Flip X
-        </label>
-        <label class="invert-toggle">
-          <input type="checkbox" id="chk-invert-y" /> Flip Y
-        </label>
-      </div>
-    </section>
 
-    <!-- Join Screen / Room Card -->
-    <section id="screen-join" class="card">
-      <h2 class="card-title">Join Room</h2>
-      <form id="join-form" class="join-form" autocomplete="off">
-        <div class="field-row">
-          <div class="field field-code">
-            <label for="input-code">Room Code</label>
-            <input
-              id="input-code"
-              type="text"
-              maxlength="4"
-              placeholder="ABCD"
-              autocapitalize="characters"
-              spellcheck="false"
-              required
-            />
-          </div>
-          <div class="field field-name">
-            <label for="input-name">Your Name</label>
+        <div id="code-field-wrap" class="field-group">
+          <label for="input-code" class="field-label">Room Code</label>
+          <input
+            id="input-code"
+            type="text"
+            maxlength="4"
+            placeholder="ABCD"
+            autocapitalize="characters"
+            autocomplete="off"
+            spellcheck="false"
+            class="text-input code-input"
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="input-name" class="field-label">Name</label>
+          <div class="name-row">
             <input
               id="input-name"
               type="text"
               maxlength="16"
-              placeholder="Player 1"
-              required
+              placeholder="Your name"
+              autocomplete="off"
+              spellcheck="false"
+              class="text-input name-input"
             />
+            <button id="btn-generate-name" type="button" class="btn btn-dice" aria-label="Generate random name">
+              &#127922; Generate
+            </button>
           </div>
         </div>
-        <button id="btn-join" type="submit" class="btn btn-primary btn-block">
-          Join Game
+
+        <p id="join-error" class="error-msg hidden" role="alert"></p>
+
+        <button id="btn-join" type="submit" class="btn btn-primary btn-tall">
+          JOIN
         </button>
-        <p id="join-msg" class="status-msg" aria-live="polite"></p>
       </form>
     </section>
 
-    <!-- Lobby Screen (shown after joining a room, while keeping test canvas below) -->
-    <section id="screen-lobby" class="card hidden">
-      <div class="lobby-header">
-        <div>
-          <span class="badge-room">ROOM <strong id="lobby-code">----</strong></span>
-          <span class="badge-player">You: <strong id="lobby-player-name">---</strong></span>
-        </div>
-        <span class="lobby-wait">Waiting for host...</span>
+    <!-- Screen 2: Lobby -->
+    <section id="screen-lobby" class="screen hidden">
+      <div class="lobby-top">
+        <span id="lobby-room-badge" class="room-pill">ROOM ----</span>
+        <h2 id="lobby-greeting" class="screen-title">You're in, Player</h2>
       </div>
-      <div id="lobby-players" class="player-chips"></div>
-      <p class="hint-text">Practice tilting your phone below while waiting for Round 1!</p>
+
+      <div id="lobby-motion-warn" class="warn-box hidden" role="alert"></div>
+
+      <div class="card test-card">
+        <p class="test-caption">Wave your phone: the dot should follow</p>
+        <div id="lobby-test-box" class="test-box">
+          <div class="test-crosshair-h"></div>
+          <div class="test-crosshair-v"></div>
+          <div id="lobby-dot" class="test-dot"></div>
+        </div>
+        <button id="btn-lobby-recentre" type="button" class="btn btn-secondary btn-tall">
+          Re-centre
+        </button>
+      </div>
+
+      <p class="lobby-footer-note">Eyes on the big screen — round starts soon!</p>
     </section>
 
-    <!-- Round Banner (shown during active round) -->
-    <section id="screen-round-banner" class="card round-banner hidden">
-      <div class="round-info">
-        <span id="round-label" class="round-badge">ROUND 1</span>
-        <span id="round-shape-name" class="shape-name">CIRCLE</span>
+    <!-- Screen 3: Get ready (on round:start) -->
+    <section id="screen-ready" class="screen hidden">
+      <div class="ready-header">
+        <span id="ready-round-pill" class="room-pill">ROUND 1 OF 3</span>
+        <h2 id="ready-shape-title" class="screen-title">CIRCLE</h2>
       </div>
-      <div class="timer-wrap">
-        <span id="round-timer" class="timer-text">10.0s</span>
+
+      <div id="memory-banner" class="memory-banner hidden">
+        MEMORY ROUND: remember it, it vanishes at GO
+      </div>
+
+      <div id="ready-thumb-wrap" class="thumb-wrap">
+        <canvas id="ready-shape-canvas" width="260" height="260"></canvas>
+      </div>
+
+      <ul class="instructions-list">
+        <li>Hold your phone up like a camera.</li>
+        <li>Point it at the screen.</li>
+        <li>Hold your thumb down to draw. Lift it to move without drawing.</li>
+      </ul>
+
+      <div class="countdown-box">
+        <span id="ready-countdown" class="countdown-number">3</span>
       </div>
     </section>
 
-    <!-- Motion Test & Drawing Canvas (Always visible so foundation motion test works immediately) -->
-    <section class="canvas-card">
-      <div class="canvas-header">
-        <span id="canvas-mode-label" class="canvas-title">MOTION TEST CANVAS (YAW &rarr; X, PITCH &rarr; Y)</span>
-        <span id="sample-count" class="canvas-meta">0 pts</span>
-      </div>
-      <div class="canvas-container">
-        <canvas id="motion-canvas" width="600" height="600"></canvas>
+    <!-- Screen 4: Draw (whole screen is the pen button) -->
+    <section id="screen-draw" class="screen draw-screen hidden">
+      <!-- ?debug=1 live canvas overlay -->
+      <canvas id="debug-draw-canvas" class="debug-draw-canvas hidden" width="500" height="500"></canvas>
+
+      <div class="draw-center-hud">
+        <div class="ring-container">
+          <svg class="progress-ring" width="220" height="220" viewBox="0 0 220 220">
+            <circle
+              class="progress-ring-bg"
+              cx="110"
+              cy="110"
+              r="96"
+              fill="transparent"
+              stroke-width="12"
+            />
+            <circle
+              id="draw-progress-circle"
+              class="progress-ring-fg"
+              cx="110"
+              cy="110"
+              r="96"
+              fill="transparent"
+              stroke-width="12"
+            />
+          </svg>
+          <div class="ring-inner">
+            <span id="draw-time-left" class="draw-timer">10s</span>
+            <span id="draw-shape-hint" class="draw-shape-label">CIRCLE</span>
+          </div>
+        </div>
+
+        <div id="draw-pen-title" class="draw-cta">HOLD TO DRAW</div>
+        <p id="draw-pen-sub" class="draw-sub">Press &amp; hold anywhere on screen</p>
       </div>
     </section>
 
-    <!-- Round Results Screen -->
-    <section id="screen-results" class="card hidden">
-      <div class="results-header">
-        <h2 id="results-title" class="card-title">Round 1 Results</h2>
-        <span id="results-winner-badge" class="winner-pill">Winner: ---</span>
+    <!-- Screen 5: Judging (on round:judging) -->
+    <section id="screen-judging" class="screen hidden">
+      <div class="card center-card">
+        <div class="spinner-orb"></div>
+        <h2 id="judging-headline" class="screen-title">Snowflake is judging...</h2>
+        <p id="judging-checks" class="judging-sub"></p>
       </div>
-      <div id="my-result-box" class="my-score-box">
-        <div class="score-main">
-          <span class="score-label">YOUR SCORE</span>
-          <span id="my-score-val" class="score-big">--</span>
-          <span id="my-points-earned" class="points-badge">+0 pts</span>
+    </section>
+
+    <!-- Screen 6: Results (round:results + round:extras) -->
+    <section id="screen-results" class="screen hidden">
+      <div class="card results-card">
+        <div class="results-top">
+          <span id="res-round-label" class="room-pill">ROUND 1</span>
+          <span id="res-rank" class="rank-badge">--</span>
         </div>
-        <div class="score-subgrid">
-          <div>Accuracy: <strong id="my-acc-val">--</strong></div>
-          <div>Smoothness: <strong id="my-smooth-val">--</strong></div>
+
+        <div id="res-score" class="huge-score">--%</div>
+
+        <div id="res-bars-wrap" class="bars-wrap">
+          <div class="bar-group">
+            <div class="bar-label-row">
+              <span>Stayed on the line</span>
+              <strong id="val-online">0%</strong>
+            </div>
+            <div class="bar-track">
+              <div id="bar-online" class="bar-fill bar-fill-cyan"></div>
+            </div>
+          </div>
+
+          <div class="bar-group">
+            <div class="bar-label-row">
+              <span>Covered the shape</span>
+              <strong id="val-coverage">0%</strong>
+            </div>
+            <div class="bar-track">
+              <div id="bar-coverage" class="bar-fill bar-fill-purple"></div>
+            </div>
+          </div>
         </div>
-        <blockquote id="my-ai-comment" class="ai-comment">
-          "Waiting for Snowflake judge..."
+
+        <p id="res-guess" class="guess-line"></p>
+        <p id="res-percentile" class="percentile-line hidden"></p>
+
+        <blockquote id="res-comment" class="comment-box">
+          Snowflake is writing a joke...
         </blockquote>
+
+        <div id="res-points" class="points-line">+0 &middot; total 0</div>
       </div>
-      <div id="results-list" class="leaderboard-list"></div>
     </section>
 
-    <!-- Game End / Final Leaderboard Screen -->
-    <section id="screen-gameover" class="card hidden">
-      <h2 class="card-title">Final Leaderboard</h2>
-      <div id="final-leaderboard" class="leaderboard-list"></div>
-      <div id="final-stats" class="stats-box hidden"></div>
-      <button id="btn-play-again" type="button" class="btn btn-secondary btn-block">
-        Back to Lobby / New Room
-      </button>
-    </section>
-  </div>
+    <!-- Screen 7: Final (on game:end) -->
+    <section id="screen-final" class="screen hidden">
+      <div class="card final-card">
+        <span class="room-pill">GAME OVER</span>
+        <div id="final-my-rank" class="final-rank">1st of 1</div>
+        <div id="final-my-total" class="final-total">0 pts</div>
 
-  <!-- Optional Socket.IO client (served by backend at /socket.io/socket.io.js when backend is running) -->
-  <script src="/socket.io/socket.io.js" onerror="window.__NO_SOCKET_IO__ = true;"></script>
-  <script src="app.js"></script>
+        <div class="podium-section">
+          <h3 class="podium-heading">TOP 3</h3>
+          <div id="final-top3" class="top3-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 8: Kicked (on player:kicked) -->
+    <section id="screen-kicked" class="screen hidden">
+      <div class="card center-card">
+        <h2 class="screen-title">The host removed you.</h2>
+        <button id="btn-join-again" type="button" class="btn btn-primary btn-tall">
+          Join again
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="names.js"></script>
+  <script src="pointer.js"></script>
+  <script src="phone.js"></script>
 </body>
 </html>
