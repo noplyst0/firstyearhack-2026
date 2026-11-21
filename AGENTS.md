@@ -15,6 +15,9 @@ TBD (fill in once the challenge is announced)
 
 The main folder `~/Documents/Hackathons/firstyearhack-2026` stays on `main` and is only used to merge. No AI works in it.
 
+## Reference docs (read when relevant)
+- `docs/snowflake.md`: Snowflake features and how to use them (side prize)
+
 ## Contract (API routes and data shapes)
 TBD. Frontend and backend both build against this.
 
