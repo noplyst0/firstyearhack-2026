@@ -104,6 +104,8 @@ test('join rules, ghosts, 3 rounds, duplicate + missing submit, extras, game end
   const res = await once(host, 'round:results');
   assert.strictEqual(res.scorer, 'local');
   assert.strictEqual(res.targetNorm.length, 64);
+  assert.ok(Array.isArray(res.targetNormStrokes) && Array.isArray(res.targetNormStrokes[0][0]), 'targetNormStrokes is [[[x,y]...]...]');
+  assert.strictEqual(res.targetNormStrokes.flat().length, 256);
   const [r0, rB, g1, g2] = res.results;
   assert.strictEqual(r0.name, 'Asim'); assert.strictEqual(r0.rank, 1); assert.strictEqual(r0.roundPoints, 300);
   assert.ok(r0.score > 80, 'first submit (circle) kept, score ' + r0.score);

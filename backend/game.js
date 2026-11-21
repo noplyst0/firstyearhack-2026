@@ -203,7 +203,7 @@ function createGame(io, opts = {}) {
       const sub = room.subs.get(p.id);
       const d = sub ? S.processDrawing(sub.strokes, sub.nRaw) : { valid: false, pathStrokes: null };
       attempts.push({
-        attemptId: `${gameId}-${round}-${p.id}`, playerId: p.id, isBot: false, valid: d.valid,
+        attemptId: `${gameId}-${round}-${p.id}`, playerId: p.id, playerName: p.name, isBot: false, valid: d.valid,
         nRaw: sub ? sub.nRaw : 0, nStrokes: sub ? sub.strokes.length : 0,
         durationMs: sub ? Math.max(0, sub.receivedAt - room.goAt) : 0,
         submittedAt: sub ? new Date(sub.receivedAt).toISOString() : null,
@@ -218,7 +218,7 @@ function createGame(io, opts = {}) {
       let d = S.processDrawing(draw.strokes);
       if (!d.valid) { draw = { strokes: ghosts.fakeAttempt(shape.norm), source: 'fake' }; d = S.processDrawing(draw.strokes); }
       attempts.push({
-        attemptId: `${gameId}-${round}-${g.id}`, playerId: g.id, isBot: true, valid: d.valid,
+        attemptId: `${gameId}-${round}-${g.id}`, playerId: g.id, playerName: g.name, isBot: true, valid: d.valid,
         nRaw: draw.strokes.flat().length, nStrokes: draw.strokes.length, durationMs: room.durationMs,
         submittedAt: new Date(room.goAt + room.durationMs).toISOString(),
         rawStrokes: draw.strokes, pathStrokes: d.pathStrokes, ghostSource: draw.source, isPractice: practice,
@@ -292,7 +292,7 @@ function createGame(io, opts = {}) {
 
     room.state = 'RESULTS';
     emit(room, 'round:results', {
-      round, practice, shapeId: shape.id, shapeName: shape.name, targetNorm: shape.norm, scorer, judgeMs, winner, results,
+      round, practice, shapeId: shape.id, shapeName: shape.name, targetNorm: shape.norm, targetNormStrokes: S.targetNormStrokes(shape), scorer, judgeMs, winner, results,
     });
     room.history.push({ round, practice, shapeId: shape.id, shapeName: shape.name, results });
     log(`[${room.code}] round ${round} results: scorer ${scorer}, judge ${judgeMs} ms, ${validCount} drawings, winner ${winner ? winner.name + ' ' + winner.score : 'none'}, next in ${resultsDelayMs(realPlayers(room).length, T) / 1000} s`);

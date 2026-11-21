@@ -71,17 +71,21 @@ function scoreAgainst(att, tgt, dMax = C.D_MAX) {
 // a 64-point target and swing the score by up to 14 points depending on where the player started.
 // Snowflake TARGET_POINTS must hold these same 256 points.
 const targetCache = new WeakMap();
-function targetPoints(shape) {
-  let pts = targetCache.get(shape);
-  if (!pts) {
+function targetBuild(shape) {
+  let t = targetCache.get(shape);
+  if (!t) {
     const rs = resampleStrokes(shape.strokes, TARGET_N);
     const norm = rs && normaliseStrokes(rs);
     if (!norm) throw new Error(`shape ${shape.id} has no usable strokes`);
-    pts = norm.flat();
-    targetCache.set(shape, pts);
+    const r4 = (v) => Math.round(v * 10000) / 10000;
+    t = { flat: norm.flat(), strokes: norm.map((s) => s.map(([x, y]) => [r4(x), r4(y)])) };
+    targetCache.set(shape, t);
   }
-  return pts;
+  return t;
 }
+const targetPoints = (shape) => targetBuild(shape).flat;
+// same 256 points kept per stroke (rounded), so multi-stroke shapes draw without bridging lines
+const targetNormStrokes = (shape) => targetBuild(shape).strokes;
 
 // best match in the library (sorted by id ascending; custom shapes 1000+ only count in their own round)
 function guess(att, library, roundShapeId, dMax = C.D_MAX) {
@@ -142,6 +146,6 @@ function scoreRoundLocal(attempts, shapeId, library, dMax = C.D_MAX) {
 }
 
 module.exports = {
-  N, TARGET_N, targetPoints, len, resample, resampleStrokes, normaliseStrokes, avgNearest, scoreAgainst, guess,
+  N, TARGET_N, targetPoints, targetNormStrokes, len, resample, resampleStrokes, normaliseStrokes, avgNearest, scoreAgainst, guess,
   round1, processDrawing, rankAttempts, scoreRoundLocal,
 };

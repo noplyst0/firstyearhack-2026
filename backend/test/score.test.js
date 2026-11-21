@@ -149,3 +149,10 @@ test('telemetry-aware comments react to guess, coverage, memory, strokes and ran
   assert.strictEqual(new Set(lines).size, 4);
   assert.ok(lines.every((l) => !/[{}]/.test(l)));
 });
+
+test('targetNormStrokes keeps strokes apart for multi-stroke shapes', () => {
+  const two = { id: 2001, strokes: [[[0.2, 0.2], [0.4, 0.2]], [[0.6, 0.8], [0.8, 0.8]]] };
+  const st = S.targetNormStrokes(two);
+  assert.strictEqual(st.length, 2);
+  assert.strictEqual(st.flat().length, 256);
+});

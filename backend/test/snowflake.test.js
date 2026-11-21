@@ -32,6 +32,7 @@ test('slow snowflake -> local scorer, AI comment cleaned, stats from snowflake',
     assert.ok(res.judgeMs >= 200 && res.judgeMs < 1000, 'judgeMs ' + res.judgeMs);
     assert.strictEqual(mock.calls[0].attempts[0].submittedAt.length, 24, 'real ISO submit time passed to Snowflake');
     assert.strictEqual(mock.calls[0].attempts[0].isPractice, true);
+    assert.strictEqual(mock.calls[0].attempts[0].playerName, 'Tester');
     assert.strictEqual(res.practice, true);
     const ex = await extras;
     assert.strictEqual(ex.comments[playerId], 'What a lovely wobbly circle, truly');
