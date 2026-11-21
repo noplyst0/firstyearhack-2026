@@ -7,6 +7,7 @@ let phase = "welcome", players = [], currentRound = 0, totalRounds = 3;
 let timer, startTimeout, snowflake = false;
 
 function screen(active) {
+  reveal.stop();
   clearInterval(timer);
   clearTimeout(startTimeout);
   startTimeout = null;
@@ -187,3 +188,116 @@ socket?.on("disconnect", () => {
 });
 socket?.on("connect_error", () => { byId("connection").textContent = "Connecting…"; });
 if (!socket) byId("connection").textContent = "Open /host on the game server";
+
+function textNode(tag, value) {
+  const node = document.createElement(tag);
+  node.textContent = value;
+  return node;
+}
+const percentage = value => Number(value).toFixed(1) + "%";
+let result, featured, comments, percentiles;
+
+function quoteFor(p) {
+  return comments[p.playerId] ?? p.comment ?? "…";
+}
+function meter(label, value) {
+  const wrapper = document.createElement("label");
+  wrapper.append(label + " " + Math.round(value) + "%");
+  const bar = document.createElement("meter");
+  bar.max = 100;
+  bar.value = value;
+  wrapper.append(bar);
+  return wrapper;
+}
+function showStandings() {
+  const rows = result.results.filter(p => !p.isBot).slice(0,10).map(p => {
+    const row = document.createElement("li");
+    const heading = document.createElement("div");
+    heading.className = "rank-heading";
+    heading.append(textNode("strong", (p.rank ? "#" + p.rank : "—") + "  " + p.name),
+      textNode("b", p.valid ? percentage(p.score) : "No drawing"), textNode("span", "+" + p.roundPoints + " pts"));
+    row.append(heading);
+    if (p.valid) {
+      const meters = document.createElement("div");
+      meters.className = "meters";
+      meters.append(meter("On the line",p.onLine), meter("Covered",p.coverage));
+      row.append(meters);
+    }
+    if (p.guess) {
+      const prefix = result.scorer === "snowflake" ? "Snowflake thinks you drew " : "Looks like ";
+      row.append(textNode("small", prefix + p.guess.label));
+    }
+    const percentile = percentiles[p.playerId];
+    if (percentile) row.append(textNode("small", "Beat " + percentile.beatPct + "% of " + percentile.pool + " attempts"));
+    row.append(textNode("small", quoteFor(p)));
+    return row;
+  });
+  byId("rank-list").replaceChildren(...rows);
+  if (featured) byId("quote").textContent = quoteFor(featured);
+}
+socket?.on("round:results", data => {
+  screen("results");
+  currentRound = data.round;
+  result = data;
+  comments = {};
+  percentiles = {};
+  featured = null;
+  byId("results").classList.remove("revealed");
+  byId("rankings").hidden = true;
+  byId("spotlight").classList.remove("winner");
+  byId("result-title").textContent = "Round " + data.round + " · " + data.shapeName;
+  byId("scorer").textContent = data.scorer === "snowflake" ? "Judged by Snowflake in " + (data.judgeMs/1000).toFixed(2) + " s" : "";
+  byId("next").textContent = data.round === totalRounds ? "Final standings →" : "Next round →";
+  byId("performer").textContent = "Drawing reveal";
+  byId("quote").textContent = byId("score").textContent = "";
+  const ghosts = data.results.filter(p => p.isBot);
+  byId("ghost-summary").textContent = ghosts.length ? ghosts.length + " ghosts from earlier today · Best ghost " + percentage(Math.max(...ghosts.map(p => p.score))) : "";
+  reveal.start(data, (p, count, won) => {
+    featured = p;
+    byId("spotlight").classList.toggle("winner",won);
+    byId("performer").textContent = p ? (won ? "★ WINNER  " : "") + p.name : count + " drawings";
+    byId("score").textContent = p && !p.valid ? "No drawing" : "";
+    byId("quote").textContent = p ? quoteFor(p) : "";
+  }, () => {
+    if (!data.winner) byId("performer").textContent = "No winner this round";
+    byId("rankings").hidden = false;
+    byId("results").classList.add("revealed");
+    showStandings();
+  });
+});
+socket?.on("round:extras", data => {
+  if (phase !== "results" || data.round !== currentRound) return;
+  Object.assign(comments, data.comments);
+  Object.assign(percentiles, data.percentiles);
+  if (featured) byId("quote").textContent = quoteFor(featured);
+  if (!byId("rankings").hidden) showStandings();
+});
+byId("next").onclick = () => send("host:next");
+byId("again").onclick = () => { sounds.unlock(); send("host:again"); };
+
+socket?.on("game:end", ({ leaderboard, stats = {} }) => {
+  screen("final");
+  const people = leaderboard.filter(p => !p.isBot);
+  function placing(p,i) {
+    const row = document.createElement("li");
+    row.append(textNode("strong", "#" + (i+1) + "  " + p.name), textNode("span", p.total + " pts"));
+    return row;
+  }
+  byId("leaders").replaceChildren(...people.map(placing));
+  byId("podium").replaceChildren(...people.slice(0,3).map((p,i) => {
+    const place = document.createElement("div");
+    place.className = "place";
+    place.append(textNode("small", ["★ Champion","2nd place","3rd place"][i]),textNode("strong",p.name),textNode("span",p.total + " pts"));
+    return place;
+  }));
+  const local = stats.source === "local" || (!stats.source && !snowflake);
+  byId("stats-title").textContent = local ? "This game" : "Snowflake stats";
+  const values = [
+    [local ? "Drawings" : "Drawings today", stats.totalAttempts],
+    [local ? "Games" : "Games today", stats.totalGames],
+    [local ? "Best score" : "Best ever", stats.bestEver == null ? null : percentage(stats.bestEver)],
+    ["Hardest shape", stats.hardestShape], ["Most common accidental shape", stats.commonWrongGuess],
+    ...(stats.avgByShape || []).map(s => [s.shape + " average", percentage(s.avg)])
+  ];
+  byId("stats").replaceChildren(...values.flatMap(([label,value]) => [textNode("dt",label),textNode("dd",value ?? "—")]));
+});

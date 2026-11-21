@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/host/host.css">
   <script defer src="/socket.io/socket.io.js"></script>
   <script defer src="/host/sounds.js"></script>
+  <script defer src="/host/overlay.js"></script>
   <script defer src="/host/host.js"></script>
   <script async src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" id="qr-library"></script>
 </head>
@@ -52,6 +53,22 @@
     </section>
     <section id="judging" class="card judging" hidden>
       <h2 id="judge-title">Judging drawings…</h2><p id="checks"></p>
+    </section>
+    <section id="results" hidden>
+      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><button id="next">Next round →</button></div>
+      <div id="reveal-stage" class="stage">
+        <svg id="overlay" viewBox="-250 -250 500 500" role="img" aria-label="Drawings over the target"></svg>
+        <div id="confetti" aria-hidden="true"></div>
+      </div>
+      <div id="spotlight" class="card"><strong id="performer"></strong><span id="score"></span><p id="quote"></p></div>
+      <div id="rankings" hidden><h2>Round standings</h2><ol id="rank-list"></ol></div>
+      <p id="ghost-summary"></p>
+    </section>
+    <section id="final" hidden>
+      <div class="row"><h2>Final standings</h2><button id="again">Play again ↻</button></div>
+      <div id="podium"></div>
+      <div class="final-grid"><div><h2>Leaderboard</h2><ol id="leaders"></ol></div>
+        <div class="card stats"><h2 id="stats-title">Drawing stats</h2><dl id="stats"></dl></div></div>
     </section>
     <p id="notice" role="status"></p>
   </main>
