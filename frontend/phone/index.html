@@ -212,45 +212,53 @@
       </div>
     </section>
 
-    <!-- Screen 4: Draw (whole screen is the pen button) -->
-    <section id="screen-draw" class="screen draw-screen hidden">
-      <div id="draw-practice-banner" class="practice-banner draw-top-banner hidden">
-        PRACTICE ROUND - doesn't count
-      </div>
-
-      <!-- Live line canvas: shown during Practice round or ?debug=1, hidden (blind) in real rounds -->
-      <canvas id="debug-draw-canvas" class="debug-draw-canvas hidden" width="500" height="500"></canvas>
-
-      <div class="draw-center-hud">
-        <div class="ring-container">
-          <svg class="progress-ring" width="220" height="220" viewBox="0 0 220 220">
-            <circle
-              class="progress-ring-bg"
-              cx="110"
-              cy="110"
-              r="96"
-              fill="transparent"
-              stroke-width="12"
-            />
-            <circle
-              id="draw-progress-circle"
-              class="progress-ring-fg"
-              cx="110"
-              cy="110"
-              r="96"
-              fill="transparent"
-              stroke-width="12"
-            />
-          </svg>
-          <div class="ring-inner">
-            <span id="draw-time-left" class="draw-timer">10s</span>
-            <span id="draw-shape-hint" class="draw-shape-label">CIRCLE</span>
-            <span id="draw-difficulty-stars" class="difficulty-stars difficulty-stars-sm">&#9733;&#9734;&#9734;</span>
-          </div>
+    <!-- Screen 4: Draw (HOLD TO DRAW pad + small I'M DONE button below it) -->
+    <section id="screen-draw" class="screen draw-screen-wrap hidden">
+      <div id="draw-pad" class="draw-pad draw-screen">
+        <div id="draw-practice-banner" class="practice-banner draw-top-banner hidden">
+          PRACTICE ROUND - doesn't count
         </div>
 
-        <div id="draw-pen-title" class="draw-cta">HOLD TO DRAW</div>
-        <p id="draw-pen-sub" class="draw-sub">Move your phone to trace the shape</p>
+        <!-- Live line canvas: shown during Practice round or ?debug=1, hidden (blind) in real rounds -->
+        <canvas id="debug-draw-canvas" class="debug-draw-canvas hidden" width="500" height="500"></canvas>
+
+        <div class="draw-center-hud">
+          <div class="ring-container">
+            <svg class="progress-ring" width="220" height="220" viewBox="0 0 220 220">
+              <circle
+                class="progress-ring-bg"
+                cx="110"
+                cy="110"
+                r="96"
+                fill="transparent"
+                stroke-width="12"
+              />
+              <circle
+                id="draw-progress-circle"
+                class="progress-ring-fg"
+                cx="110"
+                cy="110"
+                r="96"
+                fill="transparent"
+                stroke-width="12"
+              />
+            </svg>
+            <div class="ring-inner">
+              <span id="draw-time-left" class="draw-timer">10s</span>
+              <span id="draw-shape-hint" class="draw-shape-label">CIRCLE</span>
+              <span id="draw-difficulty-stars" class="difficulty-stars difficulty-stars-sm">&#9733;&#9734;&#9734;</span>
+            </div>
+          </div>
+
+          <div id="draw-pen-title" class="draw-cta">HOLD TO DRAW</div>
+          <p id="draw-pen-sub" class="draw-sub">Move your phone to trace the shape</p>
+        </div>
+      </div>
+
+      <div class="draw-done-bar">
+        <button id="btn-draw-done" type="button" class="btn btn-done" disabled>
+          I'M DONE
+        </button>
       </div>
     </section>
 

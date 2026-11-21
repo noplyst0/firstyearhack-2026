@@ -510,6 +510,16 @@
       if (e.target && e.target.closest('button, input, a')) {
         return;
       }
+      if (
+        drawPhaseActive &&
+        drawPadEl &&
+        typeof drawPadEl.contains === 'function' &&
+        e.target &&
+        e.target.nodeType &&
+        !drawPadEl.contains(e.target)
+      ) {
+        return;
+      }
       activePointers.add(e.pointerId);
       if (MOUSE_MODE) {
         const refEl = drawPhaseActive ? getDrawRefEl() : lobbyBoxEl || drawPadEl;
