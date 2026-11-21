@@ -552,6 +552,12 @@ input {
   box-shadow: 4px 4px var(--ink);
   border-radius: 14px;
   padding: 2px 22px;
+  transition: transform 0.12s ease;
+}
+
+.countdown-number.tick-pop {
+  transform: scale(1.14);
+  background: var(--pink);
 }
 
 /* Screen 4: Draw (Whole screen is the pen button, styled like host .stage) */
@@ -566,7 +572,7 @@ input {
   background-size: 36px 36px;
   color: var(--paper);
   border: 6px solid var(--ink);
-  transition: background-color 0.12s ease, box-shadow 0.12s ease;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
   touch-action: none;
   overscroll-behavior: none;
   user-select: none;
@@ -577,6 +583,29 @@ input {
   background-color: #2d1842;
   border-color: var(--acid);
   box-shadow: inset 0 0 50px rgba(232, 255, 100, 0.45);
+}
+
+/* V3 Item 5: Last-3s urgency visual pulse */
+.draw-screen.urgent {
+  border-color: var(--danger);
+  animation: urgentPulse 0.55s ease-in-out infinite alternate;
+}
+
+.draw-screen.urgent .progress-ring-fg {
+  stroke: var(--danger);
+}
+
+.draw-screen.urgent .draw-timer {
+  color: var(--danger);
+}
+
+@keyframes urgentPulse {
+  from {
+    box-shadow: inset 0 0 35px rgba(255, 92, 119, 0.3);
+  }
+  to {
+    box-shadow: inset 0 0 75px rgba(255, 92, 119, 0.65);
+  }
 }
 
 .debug-draw-canvas {

@@ -1,4 +1,4 @@
-// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 P1-P5 + Practice + Host Theme + Mini Replay)
+// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 Items 1..5 Complete)
 (() => {
   'use strict';
 
@@ -114,6 +114,15 @@
 
   // Store extras by round so round:extras can merge cleanly even if arriving multiple times
   const extrasByRound = new Map();
+
+  // Safe haptic vibration helper (V3 Item 5)
+  function vibratePhone(pattern) {
+    try {
+      if (navigator.vibrate) navigator.vibrate(pattern);
+    } catch (_e) {
+      // Ignore on browsers without Vibration API
+    }
+  }
 
   // Wake Lock
   let wakeLockSentinel = null;
@@ -528,6 +537,7 @@
     const endTs = startTs + countdownMs;
     let calStarted = false;
     let calFinished = false;
+    let lastCountdownSec = null;
 
     function tickCountdown(now) {
       const rem = Math.max(0, endTs - now);
@@ -545,9 +555,18 @@
       if (rem > 0) {
         const secs = Math.ceil(rem / 1000);
         readyCountdown.textContent = String(secs);
+        // V3 Item 5: Haptic countdown tick on each 3-2-1 second transition
+        if (secs !== lastCountdownSec) {
+          lastCountdownSec = secs;
+          vibratePhone(20);
+          readyCountdown.classList.add('tick-pop');
+          setTimeout(() => readyCountdown.classList.remove('tick-pop'), 140);
+        }
         countdownRafId = requestAnimationFrame(tickCountdown);
       } else {
         readyCountdown.textContent = 'GO!';
+        // V3 Item 5: Strong haptic pulse on GO!
+        vibratePhone(70);
         // Memory round: at GO, hide the shape name, difficulty stars, and thumbnail
         if (isMemoryRound) {
           readyThumbWrap.classList.add('hidden');
@@ -596,7 +615,7 @@
   // Screen 4: Draw
   function beginDrawScreen(durationMs) {
     showScreen('draw');
-    screens.draw.classList.remove('pen-held');
+    screens.draw.classList.remove('pen-held', 'urgent');
 
     // V3 §1: Show practice banner and live line ONLY when practice is true (or ?debug=1); real rounds stay blind
     if (isPracticeRound) {
@@ -631,13 +650,24 @@
 
     const startTs = performance.now();
     const endTs = startTs + durationMs;
+    let lastUrgentSec = null;
 
     function tickDraw(now) {
       const rem = Math.max(0, endTs - now);
       const frac = durationMs > 0 ? rem / durationMs : 0;
       const offset = RING_CIRCUMFERENCE * (1 - frac);
       drawProgressCircle.style.strokeDashoffset = `${offset.toFixed(2)}`;
-      drawTimeLeft.textContent = `${Math.ceil(rem / 1000)}s`;
+      const secsLeft = Math.ceil(rem / 1000);
+      drawTimeLeft.textContent = `${secsLeft}s`;
+
+      // V3 Item 5: Last-3s vibration & visual urgency pulse
+      if (rem > 0 && rem <= 3000) {
+        screens.draw.classList.add('urgent');
+        if (secsLeft !== lastUrgentSec) {
+          lastUrgentSec = secsLeft;
+          vibratePhone(35);
+        }
+      }
 
       if (shouldShowLiveLine()) {
         renderDebugDrawCanvas(SkyPointer.getState());
@@ -714,7 +744,8 @@
     roundSubmitted = true;
 
     const { strokes, points } = SkyPointer.stopDrawPhase();
-    screens.draw.classList.remove('pen-held');
+    screens.draw.classList.remove('pen-held', 'urgent');
+    vibratePhone([40, 50, 40]);
     drawTimeLeft.textContent = '0s';
     drawPenTitle.textContent = 'Drawing sent';
     drawPenSub.textContent = 'Look at the big screen!';
@@ -758,7 +789,6 @@
 
     const w = resReplayCanvas.width;
     const h = resReplayCanvas.height;
-    // Normalised coordinates have centre (0,0) and RMS radius 1 (~[-2.3, 2.3] span -> w/5 scale, matching host overlay.js)
     const scale = w / 5;
     const cx = w / 2;
     const cy = h / 2;
