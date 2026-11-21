@@ -49,6 +49,12 @@ select { padding:.25em; font-weight:900; border:2px solid; }
 #memory, .banner-practice { background:var(--pink); border:4px solid var(--ink); border-radius:14px; padding:.45em .8em; margin-bottom:.75rem; font-weight:900; text-align:center; font-size:clamp(1.2rem,2.1vw,2.6rem); }
 .banner-practice { background:var(--acid); }
 #timer { display:block; width:100%; height:1.2rem; margin-top:1rem; accent-color:#6742c7; }
+.round-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin-top:1rem; }
+.round-progress { margin:0; font:900 clamp(1.6rem,3.2vw,3.4rem)/1.1 "Arial Black","Helvetica Neue",Arial,sans-serif; font-variant-numeric:tabular-nums; background:white; color:var(--ink); border:4px solid var(--ink); border-radius:16px; padding:.3em .75em; box-shadow:6px 6px var(--ink); }
+.round-progress.bump { animation:progress-bump .26s ease-out; }
+.round-progress.all-in { background:var(--acid); }
+@keyframes progress-bump { 0% { transform:scale(1); } 45% { transform:scale(1.07); } 100% { transform:scale(1); } }
+#end-round { background:var(--pink); font-size:clamp(1.15rem,2vw,2.2rem); white-space:nowrap; }
 #round.urgent #time { background:#ff476f; color:white; animation:urgent-pulse .42s ease-in-out infinite alternate; }
 #round.urgent #timer { accent-color:#ff476f; }
 #round.urgent .stage { border-color:#ff476f; box-shadow:0 0 0 4px #ff476f, 8px 8px var(--ink); }

@@ -6,6 +6,7 @@ let room = sessionStorage.getItem(storageKey) || "";
 let phase = "welcome", players = [], currentRound = 0;
 let totalRounds = Number(sessionStorage.getItem(storageKey + "-rounds")) || 3;
 let replayRequested = false;
+let endRoundSent = false;
 let timer, startTimeout, roomViewTimer, snowflake = false;
 let podiumTimers = [];
 function clearPodiumTimers() {
@@ -185,7 +186,13 @@ function startRound(data) {
   byId("practice").hidden = !isPractice;
   byId("memory").hidden = !memory;
   byId("memory").textContent = "✦ MEMORY ROUND · Memorise the shape";
-  byId("progress").textContent = "0 / " + players.filter(p => !p.isBot).length + " drawings in";
+  endRoundSent = false;
+  const endBtn = byId("end-round");
+  if (endBtn) {
+    endBtn.disabled = false;
+    endBtn.textContent = "End round now";
+  }
+  updateProgress(0, players.filter(p => !p.isBot).length, false);
   const key = storageKey + "-clock";
   const prior = JSON.parse(sessionStorage.getItem(key) || "null");
   const started = prior?.code === room && prior.round === round ? prior.started : Date.now();
@@ -227,8 +234,28 @@ function startRound(data) {
   tick();
 }
 socket?.on("round:start", startRound);
+function updateProgress(submitted, total, animate) {
+  const el = byId("progress");
+  if (!el) return;
+  const done = total > 0 && submitted >= total;
+  el.textContent = (done ? "✓ " : "") + submitted + " / " + total + " drawings in";
+  el.classList.toggle("all-in", done);
+  if (animate) {
+    el.classList.remove("bump");
+    void el.offsetWidth;
+    el.classList.add("bump");
+  }
+}
+byId("end-round").onclick = () => {
+  if (phase !== "round" || endRoundSent) return;
+  endRoundSent = true;
+  const btn = byId("end-round");
+  btn.disabled = true;
+  btn.textContent = "Ending round…";
+  send("host:endRound");
+};
 socket?.on("round:progress", ({ round, submitted, total }) => {
-  if (phase === "round" && currentRound === round) byId("progress").textContent = submitted + " / " + total + " drawings in";
+  if (phase === "round" && currentRound === round) updateProgress(submitted, total, true);
 });
 socket?.on("round:judging", ({ round, distanceChecks }) => {
   screen("judging");
