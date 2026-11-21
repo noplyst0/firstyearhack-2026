@@ -2,7 +2,7 @@
 module.exports = {
   N: 64,
   D_MAX: Number(process.env.D_MAX) || 0.35,
-  FOV: 40,
+  FOV: 60, // V3: bigger arm movements, less wrist twitch (same in Snowflake CONFIG)
   SMOOTHING: 0.35,
   SAMPLE_MS: 33,
 

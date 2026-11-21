@@ -88,7 +88,7 @@ test('join rules, ghosts, 3 rounds, duplicate + missing submit, extras, game end
   assert.strictEqual(rs.practice, false);
   assert.strictEqual(rs.round, 1); assert.strictEqual(rs.totalRounds, 3); assert.strictEqual(rs.shapeId, 1);
   assert.strictEqual(rs.memory, false); assert.ok(rs.targetStrokes.length && rs.targetPoints.length);
-  assert.strictEqual(rs.fov, 40); assert.strictEqual(rs.smoothing, 0.35);
+  assert.strictEqual(rs.fov, 60); assert.strictEqual(rs.smoothing, 0.35);
   assert.strictEqual((await call(sock(), 'player:join', { code, name: 'Late' })).error, 'ROOM_STARTED');
 
   drain(host, 'round:progress');
@@ -100,6 +100,7 @@ test('join rules, ghosts, 3 rounds, duplicate + missing submit, extras, game end
 
   const judging = await once(host, 'round:judging');
   assert.strictEqual(judging.drawings, 3); // Asim + 2 ghosts
+  assert.strictEqual(judging.distanceChecks, 3 * 64 * 256 * 15);
   const res = await once(host, 'round:results');
   assert.strictEqual(res.scorer, 'local');
   assert.strictEqual(res.targetNorm.length, 64);
@@ -254,6 +255,8 @@ test('practice round: no points, kept out of stats and the attempts file, then 3
   const ge = await end;
   assert.deepStrictEqual(ge.leaderboard, [{ playerId, name: 'Practiser', total: 900 }]);
   assert.strictEqual(ge.stats.totalAttempts, 3, 'practice excluded from stats');
+  assert.deepStrictEqual(Object.keys(ge.stats.bestEver).sort(), ['name', 'score', 'shape']);
+  assert.strictEqual(ge.stats.bestEver.name, 'Practiser');
   assert.deepStrictEqual(ge.stats.avgByShape.map((s) => s.shape), ['circle', 'triangle', 'star']);
 });
 

@@ -44,6 +44,10 @@ test('slow snowflake -> local scorer, AI comment cleaned, stats from snowflake',
     const ge = await end;
     assert.strictEqual(ge.stats.source, 'snowflake');
     assert.strictEqual(ge.stats.totalGames, 7);
+    // old SQL returned bestEver as a bare number: it must become { name, score, shape }, never NaN
+    assert.deepStrictEqual(Object.keys(ge.stats.bestEver).sort(), ['name', 'score', 'shape']);
+    assert.strictEqual(ge.stats.bestEver.score, 88.1);
+    assert.strictEqual(ge.stats.totalAttempts, 0, 'NaN totalAttempts from Snowflake falls back to the local count (no real-round drawings here)');
   } finally {
     host.close(); a.close();
     await srv.close();

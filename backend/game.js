@@ -226,7 +226,7 @@ function createGame(io, opts = {}) {
     });
 
     const validCount = attempts.filter((a) => a.valid).length;
-    emit(room, 'round:judging', { round, drawings: validCount, distanceChecks: validCount * 64 * 64 * library.length }, false);
+    emit(room, 'round:judging', { round, drawings: validCount, distanceChecks: validCount * S.N * S.TARGET_N * library.length }, false);
 
     // Snowflake first (4 s race), local maths as the fallback
     let rows = null, scorer = 'local';
@@ -383,6 +383,28 @@ function createGame(io, opts = {}) {
     };
   }
 
+  // Snowflake stats win field by field; anything missing, null or not a number falls back to this game's own value.
+  // bestEver is always { name, score, shape } (V3), never a bare number.
+  function mergeStats(sfStats, local) {
+    if (!sfStats || typeof sfStats !== 'object') return local;
+    const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+    const out = { ...local, source: 'snowflake' };
+    for (const [k, v] of Object.entries(sfStats)) if (v !== null && v !== undefined) out[k] = v;
+    for (const k of ['totalAttempts', 'totalGames']) out[k] = num(sfStats[k]) ?? local[k];
+    const be = sfStats.bestEver;
+    if (be && typeof be === 'object' && num(be.score) !== null) {
+      out.bestEver = { name: be.name ?? null, score: S.round1(num(be.score)), shape: be.shape ?? null };
+    } else if (num(be) !== null) {
+      // bare number from older SQL: keep the score, borrow name and shape only if this game set it
+      const l = local.bestEver;
+      out.bestEver = l && Math.abs(l.score - num(be)) < 0.05 ? l : { name: null, score: S.round1(num(be)), shape: null };
+    } else {
+      out.bestEver = local.bestEver;
+    }
+    if (Array.isArray(out.avgByShape)) out.avgByShape = out.avgByShape.map((s) => ({ ...s, avg: num(s.avg) === null ? null : S.round1(num(s.avg)), n: num(s.n) ?? 0 }));
+    return out;
+  }
+
   async function endGame(room) {
     if (room.state === 'GAME_END') return;
     room.state = 'GAME_END';
@@ -390,11 +412,11 @@ function createGame(io, opts = {}) {
     const leaderboard = realPlayers(room)
       .sort((a, b) => b.total - a.total || b.best - a.best)
       .map((p) => ({ playerId: p.id, name: p.name, total: p.total }));
-    let st = null;
+    let sfStats = null;
     if (sf.enabled) {
-      try { st = await sf.call('gameStats', {}, SF.stats); if (st) st = { source: 'snowflake', ...st }; } catch (_) { st = null; }
+      try { sfStats = await sf.call('gameStats', {}, SF.stats); } catch (_) { sfStats = null; }
     }
-    if (!st) st = localStats(room);
+    const st = mergeStats(sfStats, localStats(room));
     if (rooms.get(room.code) !== room || room.state !== 'GAME_END') return;
     emit(room, 'game:end', { leaderboard, stats: st });
     log(`[${room.code}] game end: ${leaderboard.slice(0, 3).map((l) => `${l.name} ${l.total}`).join(', ')} (stats ${st.source})`);
