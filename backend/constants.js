@@ -17,7 +17,10 @@ module.exports = {
   TIMING: {
     countdownMs: 3000,
     graceMs: 2000, // after the drawing time, before judging
-    resultsMs: 15000, // auto-advance from results
+    // auto-advance from results: 8 s + 3.5 s per real player, capped at 90 s (host:next skips it)
+    resultsBaseMs: 8000,
+    resultsPerPlayerMs: 3500,
+    resultsMaxMs: 90000,
     extrasDelayMs: 400, // local mode: extras a moment after results
     hostGraceMs: 60000, // room kept after the host leaves
     lobbyGraceMs: 20000, // disconnected lobby player kept for a refresh

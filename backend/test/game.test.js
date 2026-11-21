@@ -6,7 +6,7 @@ const assert = require('node:assert');
 const { io: connect } = require('socket.io-client');
 const { start } = require('../server');
 
-const timing = { countdownMs: 30, durationScale: 0.02, graceMs: 30, resultsMs: 600000, extrasDelayMs: 10, hostGraceMs: 400, lobbyGraceMs: 150 };
+const timing = { countdownMs: 30, durationScale: 0.02, graceMs: 30, resultsBaseMs: 600000, extrasDelayMs: 10, hostGraceMs: 400, lobbyGraceMs: 150 };
 let srv, url;
 const socks = [];
 // every socket queues every event it receives, so a test never misses one that arrived early
@@ -166,4 +166,42 @@ test('non-host cannot start; health endpoint', async () => {
   assert.strictEqual((await call(p, 'host:start', { code, rounds: 3 })).error, 'NOT_HOST');
   const h = await (await fetch(url + '/health')).json();
   assert.strictEqual(h.ok, true); assert.strictEqual(h.snowflake, 'off');
+});
+
+test('results auto-advance: 8 s + 3.5 s per real player, capped at 90 s', () => {
+  const { resultsDelayMs } = require('../game');
+  assert.strictEqual(resultsDelayMs(0), 8000);
+  assert.strictEqual(resultsDelayMs(1), 11500);
+  assert.strictEqual(resultsDelayMs(4), 22000);
+  assert.strictEqual(resultsDelayMs(23), 88500);
+  assert.strictEqual(resultsDelayMs(24), 90000);
+  assert.strictEqual(resultsDelayMs(150), 90000);
+});
+
+test('results auto-advance counts real players only (ghosts excluded) and fires on its own', async () => {
+  // separate server: base 100 ms + 150 ms per real player, so 2 real players = 400 ms; 20 ghosts must not add time
+  const fast = await start({ port: 0, quiet: true, timing: { ...timing, resultsBaseMs: 100, resultsPerPlayerMs: 150, resultsMaxMs: 5000 } });
+  const u = `http://localhost:${fast.port}`;
+  const mk = () => { const s = connect(u, { transports: ['websocket'], forceNew: true }); socks.push(s); return s; };
+  try {
+    const host = mk(), a = mk(), b = mk();
+    const { code } = await call(host, 'host:create', { test: true });
+    const ja = await call(a, 'player:join', { code, name: 'One' });
+    const jb = await call(b, 'player:join', { code, name: 'Two' });
+    await call(host, 'host:bots', { code, count: 20 });
+    const got = (ev) => new Promise((r) => host.once(ev, r));
+    const firstStart = got('round:start');
+    await call(host, 'host:start', { code, rounds: 3 });
+    await firstStart;
+    const results = got('round:results');
+    await submit(a, code, ja.playerId, 1, circle());
+    await submit(b, code, jb.playerId, 1, circle());
+    await results;
+    const t0 = Date.now();
+    await got('round:start');
+    const waited = Date.now() - t0;
+    assert.ok(waited >= 350 && waited < 1000, `advanced after ${waited} ms, expected about 400`);
+  } finally {
+    await fast.close();
+  }
 });

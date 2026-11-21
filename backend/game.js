@@ -11,6 +11,11 @@ const sf = require('./sf');
 
 const CODE_LETTERS = 'BCDFGHJKLMNPQRSTVWXZ'; // no vowels, so no rude words on the big screen
 
+// how long RESULTS stays up before the next round: the host reveals every real player one by one
+function resultsDelayMs(nReal, T = C.TIMING) {
+  return Math.min(T.resultsMaxMs, T.resultsBaseMs + T.resultsPerPlayerMs * Math.max(0, nReal));
+}
+
 function createGame(io, opts = {}) {
   const T = { ...C.TIMING, ...(opts.timing || {}) };
   const SF = { ...C.SF_MS, ...(opts.sfMs || {}) };
@@ -285,7 +290,7 @@ function createGame(io, opts = {}) {
       round, shapeId: shape.id, shapeName: shape.name, targetNorm: shape.norm, scorer, judgeMs, winner, results,
     });
     room.history.push({ round, shapeId: shape.id, shapeName: shape.name, results });
-    log(`[${room.code}] round ${round} results: scorer ${scorer}, judge ${judgeMs} ms, ${validCount} drawings, winner ${winner ? winner.name + ' ' + winner.score : 'none'}`);
+    log(`[${room.code}] round ${round} results: scorer ${scorer}, judge ${judgeMs} ms, ${validCount} drawings, winner ${winner ? winner.name + ' ' + winner.score : 'none'}, next in ${resultsDelayMs(realPlayers(room).length, T) / 1000} s`);
 
     // local percentile pool is read before this round is appended
     const scoresByPlayer = Object.fromEntries(ranked.map((a) => [a.playerId, S.round1(a.accuracy)]));
@@ -295,7 +300,8 @@ function createGame(io, opts = {}) {
       store.append(ranked.map((a) => ({ gameId, round, shapeId: shape.id, pathStrokes: a.pathStrokes, score: S.round1(a.accuracy), at })));
     }
 
-    setTimer(room, 'results', T.resultsMs, () => next(room));
+    const advanceMs = resultsDelayMs(realPlayers(room).length, T);
+    setTimer(room, 'results', advanceMs, () => next(room));
     sendExtras(room, { round, shape, featured, ranked, attempts, localPct }).catch((e) => log(`[${room.code}] extras error:`, e.message));
   }
 
@@ -608,4 +614,4 @@ function createGame(io, opts = {}) {
   return { rooms, stats, close };
 }
 
-module.exports = { createGame };
+module.exports = { createGame, resultsDelayMs };
