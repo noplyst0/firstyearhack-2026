@@ -10,7 +10,7 @@ const { start } = require('../server');
 const mock = require('./mocks/slowSnowflake');
 
 test('slow snowflake -> local scorer, AI comment cleaned, stats from snowflake', async () => {
-  const srv = await start({ port: 0, quiet: true, sfMs: { score: 200 }, timing: { countdownMs: 20, durationScale: 0.02, graceMs: 20, resultsMs: 600000 } });
+  const srv = await start({ port: 0, quiet: true, sfMs: { score: 200 }, timing: { countdownMs: 20, durationScale: 0.02, graceMs: 20, resultsBaseMs: 600000 } });
   await new Promise((r) => setTimeout(r, 50)); // init
   const url = `http://localhost:${srv.port}`;
   const s = (x = connect(url, { transports: ['websocket'], forceNew: true })) => x;
