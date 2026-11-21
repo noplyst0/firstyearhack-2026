@@ -267,6 +267,10 @@ test('practice round: no points, kept out of stats and the attempts file, then 3
   assert.strictEqual(ge.stats.totalAttempts, 3, 'practice excluded from stats');
   assert.deepStrictEqual(Object.keys(ge.stats.bestEver).sort(), ['name', 'score', 'shape']);
   assert.strictEqual(ge.stats.bestEver.name, 'Practiser');
+  assert.strictEqual(ge.stats.steadiest.name, 'Practiser'); assert.ok(Number.isFinite(ge.stats.steadiest.tremor));
+  assert.deepStrictEqual(ge.stats.perShape.map((x) => x.shape), ['circle', 'triangle', 'star']);
+  assert.ok(ge.stats.confusion && ge.stats.confusion.label, 'a circle on the star round is a confusion');
+  for (const k of ['bestEver', 'steadiest', 'mostImproved', 'confusion', 'perShape', 'totalAttempts', 'totalGames', 'hardestShape']) assert.ok(k in ge.stats, k);
   assert.deepStrictEqual(ge.stats.avgByShape.map((s) => s.shape), ['circle', 'triangle', 'star']);
 });
 

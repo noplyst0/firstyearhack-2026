@@ -49,6 +49,9 @@ test('slow snowflake -> local scorer, AI comment cleaned, stats from snowflake',
     // old SQL returned bestEver as a bare number: it must become { name, score, shape }, never NaN
     assert.deepStrictEqual(Object.keys(ge.stats.bestEver).sort(), ['name', 'score', 'shape']);
     assert.strictEqual(ge.stats.bestEver.score, 88.1);
+    assert.deepStrictEqual(ge.stats.steadiest, { name: 'Zed', tremor: 3.2 }, 'Snowflake value passes through');
+    assert.strictEqual(ge.stats.mostImproved, null, 'malformed Snowflake value -> local (none here)');
+    assert.deepStrictEqual(ge.stats.confusion, { shape: 'star', label: 'a potato', pct: 38 });
     assert.strictEqual(ge.stats.totalAttempts, 0, 'NaN totalAttempts from Snowflake falls back to the local count (no real-round drawings here)');
   } finally {
     host.close(); a.close();

@@ -181,3 +181,9 @@ test('room view: crowd of wobbly circles beats the average player; heat is highe
   console.log(`   room view: alone ${v.alone}, together ${v.crowd.score}`);
   assert.strictEqual(S.roomViewLocal(shape, paths.slice(0, 1), scores), null, 'needs 2 drawings');
 });
+
+test('tremor: a wobbly circle is less steady than a clean one', () => {
+  const clean = S.processDrawing([circlePts(300)]).pathStrokes;
+  const shaky = S.processDrawing([circlePts(300).map(([x, y]) => [x + gauss() * 0.01, y + gauss() * 0.01])]).pathStrokes;
+  assert.ok(S.tremor(clean) < S.tremor(shaky), `${S.tremor(clean)} vs ${S.tremor(shaky)}`);
+});

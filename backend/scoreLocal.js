@@ -175,8 +175,28 @@ function roomViewLocal(shape, paths, scores, dMax = C.D_MAX) {
   return { heat: miss.map((m) => r3(m / max)), crowd: { path, score }, alone };
 }
 
+// Tremor (V3 "steadiest hands"), like the LAG/ATAN2 SQL: standard deviation of the turning angle between
+// consecutive segments of each stroke, in degrees. Lower = steadier. null when there are too few segments.
+function tremor(pathStrokes) {
+  const turns = [];
+  for (const s of pathStrokes || []) {
+    let prev = null;
+    for (let i = 1; i < s.length; i++) {
+      const dx = s[i][0] - s[i - 1][0], dy = s[i][1] - s[i - 1][1];
+      if (Math.hypot(dx, dy) < 1e-9) continue;
+      const a = Math.atan2(dy, dx);
+      if (prev !== null) { let d = a - prev; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; turns.push(d); }
+      prev = a;
+    }
+  }
+  if (turns.length < 3) return null;
+  const m = turns.reduce((x, y) => x + y, 0) / turns.length;
+  const sd = Math.sqrt(turns.reduce((x, y) => x + (y - m) ** 2, 0) / (turns.length - 1));
+  return round1((sd * 180) / Math.PI);
+}
+
 module.exports = {
-  roomViewLocal,
+  roomViewLocal, tremor,
   N, TARGET_N, targetPoints, targetNormStrokes, len, resample, resampleStrokes, normaliseStrokes, avgNearest, scoreAgainst, guess,
   round1, processDrawing, rankAttempts, scoreRoundLocal,
 };

@@ -405,9 +405,48 @@ function createGame(io, opts = {}) {
     const wrong = {};
     for (const r of valid) if (r.guess && r.guess.shapeId !== r.shapeId) wrong[r.guess.label] = (wrong[r.guess.label] || 0) + 1;
     const common = Object.entries(wrong).sort((a, b) => b[1] - a[1])[0];
+
+    // steadiest: lowest average tremor over a player's real drawings
+    const byPlayer = new Map();
+    for (const h of real) {
+      for (const r of h.results) {
+        if (r.isBot || !r.valid) continue;
+        if (!byPlayer.has(r.playerId)) byPlayer.set(r.playerId, { name: r.name, tremors: [], scores: [] });
+        const e = byPlayer.get(r.playerId);
+        const t = S.tremor(r.pathStrokes);
+        if (t !== null) e.tremors.push(t);
+        e.scores.push({ round: h.round, score: r.score });
+      }
+    }
+    let steadiest = null, mostImproved = null;
+    for (const e of byPlayer.values()) {
+      if (e.tremors.length) {
+        const t = S.round1(e.tremors.reduce((a, b) => a + b, 0) / e.tremors.length);
+        if (!steadiest || t < steadiest.tremor) steadiest = { name: e.name, tremor: t };
+      }
+      // biggest jump from one real round to the next (LAG over rounds)
+      const sc = e.scores.sort((a, b) => a.round - b.round);
+      for (let i = 1; i < sc.length; i++) {
+        const gain = S.round1(sc[i].score - sc[i - 1].score);
+        if (gain > 0 && (!mostImproved || gain > mostImproved.gain)) mostImproved = { name: e.name, gain };
+      }
+    }
+    // confusion: the biggest share of one shape that looked like another ("38% of stars looked like a potato")
+    let confusion = null;
+    for (const h of real) {
+      const rs = h.results.filter((r) => !r.isBot && r.valid && r.guess);
+      const counts = {};
+      for (const r of rs) if (r.guess.shapeId !== h.shapeId) counts[r.guess.label] = (counts[r.guess.label] || 0) + 1;
+      for (const [label, c] of Object.entries(counts)) {
+        const pct = Math.round((100 * c) / rs.length);
+        if (!confusion || pct > confusion.pct) confusion = { shape: h.shapeName, label, pct };
+      }
+    }
     return {
       source: 'local', totalAttempts: valid.length, totalGames: 1,
       bestEver: best ? { name: best.name, score: best.score, shape: best.shape } : null,
+      steadiest, mostImproved, confusion,
+      perShape: avgByShape,
       hardestShape: hardest ? hardest.shape : null,
       commonWrongGuess: common ? common[0] : null,
       avgByShape,
@@ -432,6 +471,14 @@ function createGame(io, opts = {}) {
     } else {
       out.bestEver = local.bestEver;
     }
+    // V3 objects: take Snowflake's only when well formed, otherwise this game's own value
+    const obj = (v, keys, numKey) => v && typeof v === 'object' && keys.every((k) => v[k] !== undefined && v[k] !== null) && num(v[numKey]) !== null;
+    out.steadiest = obj(sfStats.steadiest, ['name'], 'tremor') ? { name: sfStats.steadiest.name, tremor: S.round1(num(sfStats.steadiest.tremor)) } : local.steadiest;
+    out.mostImproved = obj(sfStats.mostImproved, ['name'], 'gain') ? { name: sfStats.mostImproved.name, gain: S.round1(num(sfStats.mostImproved.gain)) } : local.mostImproved;
+    out.confusion = obj(sfStats.confusion, ['shape', 'label'], 'pct') ? { shape: sfStats.confusion.shape, label: sfStats.confusion.label, pct: Math.round(num(sfStats.confusion.pct)) } : local.confusion;
+    if (!Array.isArray(sfStats.perShape)) out.perShape = Array.isArray(sfStats.avgByShape) ? sfStats.avgByShape : local.perShape;
+    if (Array.isArray(out.perShape)) out.perShape = out.perShape.map((s) => ({ ...s, avg: num(s.avg) === null ? null : S.round1(num(s.avg)), n: num(s.n) ?? 0 }));
+    if (!out.hardestShape) out.hardestShape = local.hardestShape;
     if (Array.isArray(out.avgByShape)) out.avgByShape = out.avgByShape.map((s) => ({ ...s, avg: num(s.avg) === null ? null : S.round1(num(s.avg)), n: num(s.n) ?? 0 }));
     return out;
   }

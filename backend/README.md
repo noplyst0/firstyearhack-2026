@@ -39,3 +39,15 @@ Snowflake: copy `.env.example` to `.env` and fill it in. `SNOWFLAKE_ENABLED=0` f
 - `round:judging` is not resent on reconnect. `round:extras` is sent once per round, about 0.4 s after results in local mode.
 - `game:end.stats` has `source: "snowflake" | "local"`.
 - `SNOWFLAKE_MODULE` env points sf.js at another module (tests use a mock).
+
+## V3 (plan/V3.md)
+- Round 0 is practice (circle 10 s): `practice: true` on round:start and round:results, ranks shown, roundPoints 0,
+  not stored in data/attempts.jsonl, excluded from local stats. Attempts to Snowflake carry `isPractice` and `playerName`.
+- round:results has `targetNormStrokes` (256 normalised points kept per stroke).
+- round:extras has `heat` (256, 0..1), `crowd { path, score }`, `alone` whenever 2+ valid real drawings: from
+  snowflake.roomView() (3 s), else computed locally with the same nearest-point maths (scoreLocal.roomViewLocal).
+- game:end.stats: `bestEver { name, score, shape }`, `steadiest { name, tremor }`, `mostImproved { name, gain }`,
+  `confusion { shape, label, pct }`, `perShape`, `totalAttempts`, `totalGames`, `hardestShape` (+ old `avgByShape`,
+  `commonWrongGuess`). Snowflake values win when well formed; anything missing, NaN or malformed falls back to this game's own.
+- Comments are rule-based from telemetry (canned.js forAttempt), since AI_COMPLETE is blocked on the trial.
+- A failing Snowflake function no longer marks the connection down; only init and ping do.

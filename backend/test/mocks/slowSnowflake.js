@@ -8,5 +8,5 @@ module.exports = {
   async comments(items) { return Object.fromEntries(items.map((i) => [i.attemptId, '"What a lovely wobbly circle, truly"'])); },
   async percentiles() { return {}; },
   async ghostPool({ count }) { return []; },
-  async gameStats() { return { totalAttempts: NaN, totalGames: 7, bestEver: 88.14, hardestShape: 'star', commonWrongGuess: 'an egg', avgByShape: [] }; },
+  async gameStats() { return { totalAttempts: NaN, totalGames: 7, bestEver: 88.14, hardestShape: 'star', commonWrongGuess: 'an egg', avgByShape: [], steadiest: { name: 'Zed', tremor: '3.21' }, mostImproved: { name: 'Bad' }, confusion: { shape: 'star', label: 'a potato', pct: 37.6 } }; },
 };
