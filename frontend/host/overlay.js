@@ -43,6 +43,10 @@ const reveal = (() => {
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const drawMs = 2500;
     const step = drawMs + 1000;
+    const winnerHoldMs = 6000;
+    const totalMs = groups.length
+      ? (groups.length - 1) * step + drawMs + (data.winner ? winnerHoldMs : 1000)
+      : 0;
     const began = performance.now();
     let shown = -1, active = [], rolling = false, celebrated = false;
     function frame(now) {
@@ -101,7 +105,7 @@ const reveal = (() => {
         celebrate();
         focus(solo,1,true);
       }
-      if (elapsed >= groups.length*step) finish();
+      if (elapsed >= totalMs) finish();
       else animation = requestAnimationFrame(frame);
     }
     animation = requestAnimationFrame(frame);
