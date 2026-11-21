@@ -132,8 +132,47 @@ const reveal = (() => {
       ? resultData.targetNormStrokes.filter(s => Array.isArray(s) && s.length > 1)
       : resultData.targetNorm ? splitJumps(resultData.targetNorm, 0.45) : [];
     const heat = Array.isArray(viewData?.heat) ? viewData.heat : null;
+    const crowdPts = Array.isArray(viewData?.crowd?.path) && viewData.crowd.path.length > 1 ? viewData.crowd.path : null;
+    const crowdStrokes = crowdPts ? splitJumps(crowdPts, 0.4) : [];
+
+    // Tightly frame the target + crowd consensus so the shape fills the full screen.
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    const includePts = pts => {
+      for (const pt of pts) {
+        if (!Array.isArray(pt) || pt.length < 2) continue;
+        const x = 100 * pt[0], y = 100 * pt[1];
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    };
+    for (const s of targetStrokes) includePts(s);
+    for (const s of crowdStrokes) includePts(s);
+    if (!Number.isFinite(minX)) { minX = -120; maxX = 120; minY = -120; maxY = 120; }
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const span = Math.max(140, maxX - minX, maxY - minY);
+    const pad = span * 0.14;
+    const boxSize = span + pad * 2;
+    targetSvg.setAttribute("viewBox", `${(cx - boxSize / 2).toFixed(1)} ${(cy - boxSize / 2).toFixed(1)} ${boxSize.toFixed(1)} ${boxSize.toFixed(1)}`);
+
+    const heatWidth = Math.max(12, boxSize * 0.058);
+    const heatHaloWidth = heatWidth + Math.max(6, boxSize * 0.026);
+    const crowdHaloWidth = Math.max(11, boxSize * 0.046);
+    const crowdWidth = Math.max(6.5, boxSize * 0.027);
 
     if (heat && heat.length && targetStrokes.length) {
+      const haloD = targetStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
+      targetSvg.append(element("path", {
+        d: haloD,
+        stroke: "#12081c",
+        "stroke-width": heatHaloWidth,
+        fill: "none",
+        "stroke-linejoin": "round",
+        "stroke-linecap": "round"
+      }));
       const totalSegs = targetStrokes.reduce((sum, s) => sum + Math.max(0, s.length - 1), 0) || 1;
       let segIdx = 0;
       for (const stroke of targetStrokes) {
@@ -146,7 +185,7 @@ const reveal = (() => {
             x2: 100 * stroke[i][0],
             y2: 100 * stroke[i][1],
             stroke: heatColour(heat[hIdx]),
-            "stroke-width": 10,
+            "stroke-width": heatWidth,
             "stroke-linecap": "round"
           });
           targetSvg.append(seg);
@@ -155,14 +194,13 @@ const reveal = (() => {
       }
     } else if (targetStrokes.length) {
       const d = targetStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
-      targetSvg.append(element("path", { d, stroke:"#aaa3b4", "stroke-width":7, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round" }));
+      targetSvg.append(element("path", { d, stroke:"#aaa3b4", "stroke-width":heatWidth * 0.8, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round" }));
     }
 
-    const crowdPts = viewData?.crowd?.path;
-    if (Array.isArray(crowdPts) && crowdPts.length > 1) {
-      const crowdStrokes = splitJumps(crowdPts, 0.4);
+    if (crowdStrokes.length) {
       const d = crowdStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
-      targetSvg.append(element("path", { d, stroke:"#ffffff", "stroke-width":6, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round" }));
+      targetSvg.append(element("path", { d, stroke:"#12081c", "stroke-width":crowdHaloWidth, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round", opacity:"0.9" }));
+      targetSvg.append(element("path", { d, stroke:"#ffffff", "stroke-width":crowdWidth, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round" }));
     }
   }
   return { start, renderRoomView, stop() { cancelAnimationFrame(animation); } };
