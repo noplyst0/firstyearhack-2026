@@ -1,120 +1,189 @@
 const byId = id => document.getElementById(id);
-const phoneURL = new URL("/", location.href);
-const socket = window.io?.();
-let room = "";
-let countdown;
-let startTimeout;
-let starting = false;
-let playerCount = 0;
+const testGame = new URLSearchParams(location.search).get("test") === "1";
+const storageKey = testGame ? "sky-test-host" : "sky-host";
+const socket = window.io?.({ transports: ["websocket"] });
+let room = sessionStorage.getItem(storageKey) || "";
+let phase = "welcome", players = [], currentRound = 0, totalRounds = 3;
+let timer, startTimeout, snowflake = false;
 
 function screen(active) {
-  for (const id of ["welcome", "lobby", "round"]) byId(id).hidden = id !== active;
+  clearInterval(timer);
+  clearTimeout(startTimeout);
+  startTimeout = null;
+  phase = active;
+  for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== active;
+  byId("notice").textContent = "";
+  window.scrollTo(0, 0);
 }
-
-function note(message) {
-  byId("notice").textContent = message;
+function send(event, data = {}) {
+  if (socket?.connected && room) socket.emit(event, { code: room, ...data });
 }
-
-function refreshStart() {
-  byId("start").disabled = !room || !playerCount || starting;
-  byId("start").textContent = starting ? "Starting…" : "Start game →";
+async function checkHealth() {
+  try {
+    const response = await fetch("/health", { cache:"no-store", signal:AbortSignal.timeout(5000) });
+    snowflake = response.ok && (await response.json()).snowflake === "ok";
+  } catch { snowflake = false; }
+  byId("health").textContent = snowflake ? "Snowflake ✓" : "Local mode";
 }
+checkHealth();
+setInterval(checkHealth, 10000);
 
-function renderPlayers(players) {
-  const names = players.map(player => {
-    const item = document.createElement("li");
-    item.textContent = player.name;
-    return item;
+function lobbyControls() {
+  byId("bots").disabled = !socket?.connected || players.filter(p => p.isBot).length >= 50;
+  byId("start").disabled = !socket?.connected || !room || !players.length || Boolean(startTimeout);
+}
+function roster(list) {
+  const prior = new Set(players.map(p => p.id));
+  if (phase === "lobby" && list.some(p => !prior.has(p.id))) sounds.play("join");
+  players = list;
+  const chips = players.map(player => {
+    const chip = document.createElement("li");
+    chip.append((player.isBot ? "👻 " : "") + player.name);
+    const kick = document.createElement("button");
+    kick.className = "kick";
+    kick.textContent = "×";
+    kick.setAttribute("aria-label", "Remove " + player.name);
+    let armedUntil = 0;
+    kick.onclick = () => {
+      if (Date.now() < armedUntil) return send("host:kick", { playerId:player.id });
+      armedUntil = Date.now() + 3000;
+      kick.textContent = "Confirm ×";
+      setTimeout(() => { kick.textContent = "×"; }, 3000);
+    };
+    chip.append(kick);
+    if (!prior.has(player.id)) chip.classList.add("new-chip");
+    return chip;
   });
-  byId("players").replaceChildren(...names);
-  playerCount = names.length;
-  byId("count").textContent = playerCount;
-  byId("empty").hidden = playerCount > 0;
-  refreshStart();
+  byId("players").replaceChildren(...chips);
+  byId("count").textContent = players.length;
+  byId("empty").hidden = players.length > 0;
+  lobbyControls();
 }
-
-function drawQR() {
+function joinLink() {
+  if (!room) return;
+  const url = new URL("/", location.href);
+  url.searchParams.set("code", room);
+  byId("code").textContent = room;
+  byId("phone").href = url.href;
+  byId("phone").textContent = url.href;
   const qr = byId("qr");
-  if (!room || !window.QRCode || qr.childElementCount) return;
-  new QRCode(qr, { text: phoneURL.href, width: 320, height: 320 });
-  qr.hidden = false;
+  if (window.QRCode && qr.dataset.url !== url.href) {
+    qr.replaceChildren();
+    new QRCode(qr, { text:url.href, width:320, height:320 });
+    qr.dataset.url = url.href;
+    qr.hidden = false;
+  }
 }
-
-byId("qr-library").addEventListener("load", drawQR);
-byId("phone").href = phoneURL.href;
-byId("phone").textContent = phoneURL.host;
-
-byId("create").onclick = () => {
+byId("qr-library").addEventListener("load", joinLink);
+function createRoom(reclaim) {
   byId("create").disabled = true;
-  note("Creating room…");
-  socket.timeout(8000).emit("host:create", {}, (error, reply) => {
+  byId("notice").textContent = reclaim ? "Rejoining room…" : "Creating room…";
+  const payload = reclaim ? { code:room } : testGame ? { test:true } : {};
+  socket.timeout(8000).emit("host:create", payload, (error, reply) => {
     if (!socket.connected) return;
     if (error || !reply?.code) {
+      if (!error) { sessionStorage.removeItem(storageKey); room = ""; }
+      screen("welcome");
+      byId("create").textContent = room ? "Retry connection" : "Create room ↗";
       byId("create").disabled = false;
-      note("Room creation failed. Try again.");
+      byId("notice").textContent = "Couldn’t open the room. Try again.";
       return;
     }
     room = reply.code;
-    byId("code").textContent = room;
-    refreshStart();
-    note("");
-    screen("lobby");
-    drawQR();
+    sessionStorage.setItem(storageKey, room);
+    joinLink();
+    // A reclaim also replays the current event, either side of the ack.
+    if (!reclaim || reply.state === "LOBBY" || phase === "welcome") screen("lobby");
+    lobbyControls();
   });
-};
-
+}
+byId("create").onclick = () => { sounds.unlock(); createRoom(Boolean(room)); };
+byId("bots").onclick = () => send("host:bots", { count:20 });
 byId("start").onclick = () => {
-  starting = true;
-  refreshStart();
-  note("");
+  sounds.unlock();
+  totalRounds = Number(byId("rounds").value);
+  sessionStorage.removeItem(storageKey + "-clock");
   startTimeout = setTimeout(() => {
-    starting = false;
-    refreshStart();
-    note("The server hasn’t started the round. Try again.");
+    startTimeout = null;
+    lobbyControls();
+    byId("notice").textContent = "Still waiting for the server. Try again.";
   }, 8000);
-  socket.emit("host:start", { code: room, rounds: 3 });
+  lobbyControls();
+  send("host:start", { rounds:totalRounds });
 };
-
-socket?.on("round:start", ({ round, shapeId, targetPoints, durationMs }) => {
-  clearInterval(countdown);
-  clearTimeout(startTimeout);
-  starting = false;
-  note("");
-  byId("target").setAttribute("points", targetPoints.map(([x, y]) => [100*x, 100*y].join(",")).join(" "));
-  byId("shape-label").textContent = shapeId;
-  byId("round-title").textContent = "Round " + round + " · " + shapeId;
+function startRound(data) {
+  const { round, durationMs, memory } = data;
   screen("round");
-  const end = performance.now() + durationMs;
+  currentRound = round;
+  totalRounds = data.totalRounds || totalRounds;
+  const name = data.shapeName || data.shapeId;
+  const stars = "★".repeat(Math.max(0, Math.min(5, Number(data.difficulty) || 0)));
+  byId("round-title").textContent = ["Round " + round + " of " + totalRounds, name, stars].filter(Boolean).join(" · ");
+  byId("shape-label").textContent = name;
+  const strokes = data.targetStrokes || [data.targetPoints];
+  byId("target").setAttribute("d", strokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + x*100 + " " + y*100).join(" ")).join(" "));
+  byId("target").classList.remove("poof");
+  byId("memory").hidden = !memory;
+  byId("memory").textContent = "✦ MEMORY ROUND · Memorise the shape";
+  byId("progress").textContent = "0 / " + players.filter(p => !p.isBot).length + " drawings in";
+  const key = storageKey + "-clock";
+  const prior = JSON.parse(sessionStorage.getItem(key) || "null");
+  const started = prior?.code === room && prior.round === round ? prior.started : Date.now();
+  sessionStorage.setItem(key, JSON.stringify({ code:room, round, started }));
+  const go = started + (data.countdownMs ?? 3000);
+  let lastCue;
   function tick() {
-    const seconds = Math.max(0, Math.ceil((end - performance.now()) / 1000));
-    byId("time").textContent = seconds + "s";
-    if (seconds === 0) {
-      clearInterval(countdown);
-      note("Time’s up!");
+    const now = Date.now();
+    const remaining = Math.max(0, go + durationMs - now);
+    const before = now < go;
+    const cue = before ? String(Math.ceil((go-now)/1000)) : "GO!";
+    if (cue !== lastCue) {
+      if (before || now-go < 800) sounds.play(before ? "beep" : "go");
+      lastCue = cue;
+      if (!before && memory) {
+        byId("target").classList.add("poof");
+        byId("memory").textContent = "✦ MEMORY ROUND · Draw from memory";
+      }
     }
+    byId("time").textContent = before || now-go < 700 ? cue : Math.ceil(remaining/1000) + "s";
+    byId("timer").value = Math.min(1, remaining/durationMs);
+    if (remaining === 0) clearInterval(timer);
   }
-  countdown = setInterval(tick, 100);
+  timer = setInterval(tick, 75);
+  tick();
+}
+socket?.on("round:start", startRound);
+socket?.on("round:progress", ({ round, submitted, total }) => {
+  if (phase === "round" && currentRound === round) byId("progress").textContent = submitted + " / " + total + " drawings in";
+});
+socket?.on("round:judging", ({ round, distanceChecks }) => {
+  screen("judging");
+  currentRound = round;
+  byId("judge-title").textContent = snowflake ? "Snowflake is judging…" : "Judging drawings…";
+  const start = performance.now();
+  function tick() {
+    const fraction = Math.min(1, (performance.now()-start)/800);
+    byId("checks").textContent = Math.round(fraction * distanceChecks).toLocaleString() + " distance checks";
+    if (fraction === 1) clearInterval(timer);
+  }
+  timer = setInterval(tick, 40);
   tick();
 });
-
-socket?.on("lobby:update", ({ players }) => renderPlayers(players));
+socket?.on("lobby:update", ({ players }) => {
+  if (phase === "final") screen("lobby");
+  roster(players);
+});
 socket?.on("connect", () => {
   byId("connection").textContent = "Connected";
   byId("create").disabled = false;
+  if (room) createRoom(true);
 });
 socket?.on("disconnect", () => {
-  clearInterval(countdown);
   clearTimeout(startTimeout);
-  starting = false;
-  room = "";
-  renderPlayers([]);
-  screen("welcome");
+  startTimeout = null;
   byId("connection").textContent = "Reconnecting…";
   byId("create").disabled = true;
-  note("Connection lost. Create a new room once reconnected.");
+  lobbyControls();
 });
-socket?.on("connect_error", () => { byId("connection").textContent = "Connecting to server…"; });
-if (!socket) {
-  byId("connection").textContent = "Server unavailable";
-  note("Open this screen through the game server at /host, then refresh.");
-}
+socket?.on("connect_error", () => { byId("connection").textContent = "Connecting…"; });
+if (!socket) byId("connection").textContent = "Open /host on the game server";

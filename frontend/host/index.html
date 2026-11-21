@@ -6,11 +6,12 @@
   <title>SkySketch · Host</title>
   <link rel="stylesheet" href="/host/host.css">
   <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/host/sounds.js"></script>
   <script defer src="/host/host.js"></script>
   <script async src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" id="qr-library"></script>
 </head>
 <body>
-  <header><strong class="brand">✦ SkySketch</strong><span id="connection" role="status">Connecting…</span></header>
+  <header><strong class="brand">✦ SkySketch</strong><div class="controls"><span id="health">Checking scorer…</span><span id="connection" role="status">Connecting…</span><button id="mute" aria-pressed="false">Mute</button></div></header>
   <main>
     <section id="welcome" class="poster">
       <div><h1>Sky<br><em>Sketch</em></h1>
@@ -34,17 +35,23 @@
     </section>
     <section id="lobby" hidden>
       <div class="join card"><div><h2>Room code</h2><strong id="code"></strong>
-        <p>Scan to join or open <a id="phone" href="/"></a></p></div>
-        <div id="qr" hidden aria-label="QR code to open the phone page"></div>
+        <p>Scan to join on your phone.</p></div>
+        <div class="ticket"><div id="qr" hidden aria-label="QR code to open the phone page"></div><a id="phone" href="/"></a></div>
       </div>
-      <div class="row"><h2>Players <span id="count">0</span></h2><button id="start" disabled>Start game →</button></div>
+      <div class="row"><h2>Players <span id="count">0</span></h2><div class="controls"><label>Rounds <select id="rounds"><option>3</option><option>5</option></select></label><button id="bots">Add 20 ghosts</button><button id="start" disabled>Start game →</button></div></div>
       <ul id="players" aria-label="Players in the lobby"></ul><p id="empty">Waiting for players to join…</p>
     </section>
     <section id="round" hidden>
       <div class="row"><h2 id="round-title"></h2><strong id="time" aria-label="Time remaining"></strong></div>
+      <div id="memory" hidden>✦ Memory round · Memorise the shape</div>
       <div class="stage"><svg viewBox="-8 -8 116 116" role="img" aria-labelledby="shape-label">
-        <title id="shape-label">Target shape</title><polygon id="target" />
+        <title id="shape-label">Target shape</title><path id="target" />
       </svg></div>
+      <progress id="timer" aria-label="Drawing time remaining" max="1" value="1"></progress>
+      <p id="progress"></p>
+    </section>
+    <section id="judging" class="card judging" hidden>
+      <h2 id="judge-title">Judging drawings…</h2><p id="checks"></p>
     </section>
     <p id="notice" role="status"></p>
   </main>
