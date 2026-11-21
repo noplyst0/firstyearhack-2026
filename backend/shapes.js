@@ -88,7 +88,9 @@ const byId = (id) => library.find((s) => s.id === id) || null;
 function roundPlan(rounds) {
   const steps = rounds === 5
     ? [[1, 10000], [2, 12000], [3, 12000], [4, 15000], [5, 15000]]
-    : [[1, 10000], [2, 12000], [4, 15000]];
+    : rounds === 2
+      ? [[3, 12000], [7, 15000]]   // demo: square, smiley (after the practice circle)
+      : [[1, 10000], [2, 12000], [4, 15000]];
   return [{ shapeId: 1, durationMs: 10000, practice: true }, ...steps.map(([shapeId, durationMs]) => ({ shapeId, durationMs, practice: false }))];
 }
 

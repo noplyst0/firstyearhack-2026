@@ -135,7 +135,7 @@ function createGame(io, opts = {}) {
     const payload = {
       round: room.round, totalRounds: room.rounds, shapeId: shape.id, shapeName: shape.name,
       difficulty: shape.difficulty, targetStrokes: shape.strokes, targetPoints: shape.strokes.flat(),
-      durationMs, countdownMs: T.countdownMs, memory: !room.practice && room.round === room.rounds, practice: room.practice,
+      durationMs, countdownMs: T.countdownMs, memory: !room.practice && room.round === room.rounds && room.rounds !== 2, practice: room.practice,
       fov: C.FOV, smoothing: C.SMOOTHING,
     };
     emit(room, 'round:start', payload);
@@ -264,7 +264,7 @@ function createGame(io, opts = {}) {
     if (ranked.length >= 4) featured.push(ranked[ranked.length - 1]);
     const featuredIds = new Set(featured.map((a) => a.playerId));
 
-    const memory = !practice && round === room.rounds;
+    const memory = !practice && round === room.rounds && room.rounds !== 2;
     const commentCtx = { shapeId: shape.id, shapeLabel: shape.label || shape.name, memory, practice, n: ranked.length, used: new Set() };
     const lineFor = (a) => canned.forAttempt({ ...a, score: a.valid ? S.round1(a.accuracy) : 0 }, commentCtx);
     const results = [];
@@ -584,7 +584,7 @@ function createGame(io, opts = {}) {
       if (!room) return;
       if (room.state !== 'LOBBY') return ack({ ok: false, error: 'ROOM_STARTED' });
       if (!room.players.size) return ack({ ok: false, error: 'NO_PLAYERS' });
-      room.rounds = Number(data.rounds) === 5 ? 5 : 3;
+      room.rounds = [2, 5].includes(Number(data.rounds)) ? Number(data.rounds) : 3;
       room.plan = shapes.roundPlan(room.rounds);
       room.round = -1; // startRound moves to 0, the practice round
       resetTotals(room);
