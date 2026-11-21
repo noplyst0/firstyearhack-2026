@@ -37,14 +37,19 @@ const reveal = (() => {
     const groups = real.length <= 8 ? real.map(p => [p]) :
       [...real.slice(0,3).map(p => [p]), real.slice(3,-3), ...real.slice(-3).map(p => [p])];
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const step = reduced ? 150 : 1000;
+    const drawMs = 2500;
+    const step = drawMs + 1000;
     const began = performance.now();
-    let shown = -1, active = [], rolling = false;
+    let shown = -1, active = [], rolling = false, celebrated = false;
     function frame(now) {
       const elapsed = now - began;
       const index = Math.min(groups.length-1, Math.floor(elapsed/step));
       while (shown < index) {
-        for (const line of active) line.style.strokeDashoffset = "0";
+        for (const { line, label } of active) {
+          line.style.strokeDashoffset = "0";
+          line.style.opacity = ".35";
+          label?.remove();
+        }
         const group = groups[++shown];
         const solo = group.length === 1 ? group[0] : null;
         const won = solo && solo.playerId === data.winner?.playerId;
@@ -54,24 +59,43 @@ const reveal = (() => {
           const strokes = p.pathStrokes || [];
           const line = path(strokes, colour, won ? 5 : 3);
           line.style.strokeDasharray = "1";
-          active.push(line);
           const end = strokes.at(-1)?.at(-1);
+          let label;
           if (end) {
-            const label = element("text", { x:end[0]*100, y:end[1]*100-5, fill:colour, "text-anchor":end[0]>0?"end":"start" });
-            label.textContent = p.name;
+            const x = Math.max(-220, Math.min(220, end[0]*100));
+            const y = Math.max(-205, Math.min(220, end[1]*100-9));
+            label = element("text", { x, y, fill:colour, "text-anchor":x>0?"end":"start" });
+            label.textContent = p.name + " · " + p.score.toFixed(1) + "%";
             svg.append(label);
+            // Keep a long name inside even the narrowest square board.
+            const width = label.getComputedTextLength();
+            if (width > 470) {
+              label.setAttribute("textLength",470);
+              label.setAttribute("lengthAdjust","spacingAndGlyphs");
+            }
+            const fitted = Math.min(470,width);
+            label.setAttribute("x", x>0 ? Math.max(x,fitted-242) : Math.min(x,242-fitted));
           }
+          active.push({ line, label, player:p });
         }
-        if (won) { sounds.play("win"); celebrate(); }
-        focus(solo, group.length, Boolean(won));
+        focus(solo, group.length, false);
       }
-      const progress = Math.min(1, (elapsed - index*step)/(step*.7));
-      for (const line of active) line.style.strokeDashoffset = String(1-progress);
+      const progress = Math.min(1, (elapsed - index*step)/drawMs);
+      for (const {line} of active) line.style.strokeDashoffset = reduced ? "0" : String(1-progress);
       const solo = groups[index]?.length === 1 && groups[index][0];
-      if (solo?.valid) document.getElementById("score").textContent = (solo.score*progress).toFixed(1) + "%";
-      if (!rolling && data.winner && elapsed >= (groups.length-1)*step-350) {
+      if (solo?.valid && active[0]?.label && !reduced) {
+        active[0].label.textContent = solo.name + " · " + (solo.score*progress).toFixed(1) + "%";
+      }
+      const winnerOnBoard = solo && data.winner && solo.playerId === data.winner.playerId;
+      if (winnerOnBoard && !rolling && progress >= .8) {
         rolling = true;
-        if (solo?.playerId !== data.winner.playerId) sounds.play("drum");
+        sounds.play("drum");
+      }
+      if (winnerOnBoard && !celebrated && progress === 1) {
+        celebrated = true;
+        sounds.play("win");
+        celebrate();
+        focus(solo,1,true);
       }
       if (elapsed >= groups.length*step) finish();
       else animation = requestAnimationFrame(frame);

@@ -14,6 +14,7 @@ function screen(active) {
   clearTimeout(startTimeout);
   startTimeout = null;
   phase = active;
+  document.body.classList.toggle("in-reveal", active === "drawing-reveal");
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== active;
   byId("notice").textContent = "";
   window.scrollTo(0, 0);
@@ -133,7 +134,7 @@ function startRound(data) {
   const key = storageKey + "-clock";
   const prior = JSON.parse(sessionStorage.getItem(key) || "null");
   const started = prior?.code === room && prior.round === round ? prior.started : Date.now();
-  sessionStorage.setItem(key, JSON.stringify({ code:room, round, started }));
+  sessionStorage.setItem(key, JSON.stringify({ code:room, round, started, stars }));
   const go = started + (data.countdownMs ?? 3000);
   let lastCue;
   function tick() {
@@ -146,6 +147,8 @@ function startRound(data) {
       lastCue = cue;
       if (!before && memory) {
         byId("target").classList.add("poof");
+        byId("round-title").textContent = "Round " + round + " of " + totalRounds;
+        byId("shape-label").textContent = "Hidden memory target";
         byId("memory").textContent = "✦ MEMORY ROUND · Draw from memory";
       }
     }
@@ -243,16 +246,17 @@ function showStandings() {
   if (featured) byId("quote").textContent = quoteFor(featured);
 }
 socket?.on("round:results", data => {
-  screen("results");
+  screen("drawing-reveal");
   currentRound = data.round;
   result = data;
   comments = {};
   percentiles = {};
   featured = null;
-  byId("results").classList.remove("revealed");
-  byId("rankings").hidden = true;
   byId("spotlight").classList.remove("winner");
-  byId("result-title").textContent = "Round " + data.round + " · " + data.shapeName;
+  byId("spotlight").hidden = true;
+  const clock = JSON.parse(sessionStorage.getItem(storageKey + "-clock") || "null");
+  const stars = clock?.code === room && clock.round === data.round ? clock.stars : "";
+  byId("result-title").textContent = ["Round " + data.round, data.shapeName, stars].filter(Boolean).join(" · ");
   byId("scorer").textContent = data.scorer === "snowflake" ? "Judged by Snowflake in " + (data.judgeMs/1000).toFixed(2) + " s" : "";
   byId("next").textContent = data.round === totalRounds ? "Final standings →" : "Next round →";
   byId("performer").textContent = "Drawing reveal";
@@ -261,9 +265,10 @@ socket?.on("round:results", data => {
   byId("ghost-summary").textContent = ghosts.length ? ghosts.length + " ghosts from earlier today · Best ghost " + percentage(Math.max(...ghosts.map(p => p.score))) : "";
   reveal.start(data, (p, count, won) => {
     featured = p;
+    byId("spotlight").hidden = Boolean(p?.valid && !won);
     byId("spotlight").classList.toggle("winner",won);
     byId("performer").textContent = p ? (won ? "★ WINNER  " : "") + p.name : count + " drawings";
-    byId("score").textContent = p && !p.valid ? "No drawing" : "";
+    byId("score").textContent = won ? percentage(p.score) : p && !p.valid ? "No drawing" : "";
     byId("quote").textContent = p ? quoteFor(p) : "";
   }, () => {
     if (!data.winner) {
@@ -271,17 +276,16 @@ socket?.on("round:results", data => {
       byId("performer").textContent = "No winner this round";
       byId("score").textContent = byId("quote").textContent = "";
     }
-    byId("rankings").hidden = false;
-    byId("results").classList.add("revealed");
+    screen("results");
     showStandings();
   });
 });
 socket?.on("round:extras", data => {
-  if (phase !== "results" || data.round !== currentRound) return;
+  if (!["drawing-reveal","results"].includes(phase) || data.round !== currentRound) return;
   Object.assign(comments, data.comments);
   Object.assign(percentiles, data.percentiles);
   if (featured) byId("quote").textContent = quoteFor(featured);
-  if (!byId("rankings").hidden) showStandings();
+  if (phase === "results") showStandings();
 });
 byId("next").onclick = () => send("host:next");
 byId("again").onclick = () => {
