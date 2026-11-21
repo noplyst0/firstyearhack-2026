@@ -1,4 +1,4 @@
-// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (plan/phone.md)
+// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 P1-P5 + Practice + Host Theme + Mini Replay)
 (() => {
   'use strict';
 
@@ -45,6 +45,7 @@
   const readyShapeMeta = document.getElementById('ready-shape-meta');
   const readyShapeTitle = document.getElementById('ready-shape-title');
   const readyDifficultyStars = document.getElementById('ready-difficulty-stars');
+  const practiceBanner = document.getElementById('practice-banner');
   const memoryBanner = document.getElementById('memory-banner');
   const readyThumbWrap = document.getElementById('ready-thumb-wrap');
   const readyShapeCanvas = document.getElementById('ready-shape-canvas');
@@ -52,6 +53,7 @@
   const readyCountdown = document.getElementById('ready-countdown');
 
   // Screen 4: Draw
+  const drawPracticeBanner = document.getElementById('draw-practice-banner');
   const debugDrawCanvas = document.getElementById('debug-draw-canvas');
   const debugDrawCtx = debugDrawCanvas.getContext('2d');
   const drawProgressCircle = document.getElementById('draw-progress-circle');
@@ -66,9 +68,12 @@
   const judgingChecks = document.getElementById('judging-checks');
 
   // Screen 6: Results
+  const resPracticeBanner = document.getElementById('res-practice-banner');
   const resRoundLabel = document.getElementById('res-round-label');
   const resRank = document.getElementById('res-rank');
   const resScore = document.getElementById('res-score');
+  const resReplayCanvas = document.getElementById('res-replay-canvas');
+  const resReplayCtx = resReplayCanvas.getContext('2d');
   const valOnline = document.getElementById('val-online');
   const barOnline = document.getElementById('bar-online');
   const valCoverage = document.getElementById('val-coverage');
@@ -97,12 +102,14 @@
   let lobbyNoMotionTimer = null;
   let countdownRafId = null;
   let drawRafId = null;
+  let replayRafId = null;
   let activeRound = 0;
   let activeShapeId = null;
   let activeShapeName = 'shape';
   let activeDifficulty = 1;
   let activeTargetStrokes = [];
   let isMemoryRound = false;
+  let isPracticeRound = false;
   let roundSubmitted = false;
 
   // Store extras by round so round:extras can merge cleanly even if arriving multiple times
@@ -174,16 +181,22 @@
     hideJoinError();
   });
 
+  function shouldShowLiveLine() {
+    return Boolean(isPracticeRound || SkyPointer.DEBUG_MODE);
+  }
+
   // Bind pointer events for hold-to-draw and ?mouse=1
   SkyPointer.bindPadEvents(screens.draw, lobbyTestBox);
 
   SkyPointer.onUpdate((st) => {
-    // Update ?debug=1 HUD
+    // P5: Update ?debug=1 HUD including e.absolute flag
     if (SkyPointer.DEBUG_MODE) {
-      debugReadout.textContent = `yaw: ${st.yaw.toFixed(1)}° | pitch: ${st.pitch.toFixed(1)}° | x: ${st.sx.toFixed(2)} | y: ${st.sy.toFixed(2)}`;
-      if (currentScreen === 'draw') {
-        renderDebugDrawCanvas(st);
-      }
+      debugReadout.textContent = `yaw: ${st.yaw.toFixed(1)}° | pitch: ${st.pitch.toFixed(1)}° | x: ${st.sx.toFixed(2)} | y: ${st.sy.toFixed(2)} | abs:${st.absolute ? 1 : 0}`;
+    }
+
+    // V3 §1: Show live line during practice round (or ?debug=1); real rounds stay blind
+    if (currentScreen === 'draw' && shouldShowLiveLine()) {
+      renderDebugDrawCanvas(st);
     }
 
     // Update Lobby test dot
@@ -213,7 +226,12 @@
     }
   });
 
-  btnLobbyRecentre.addEventListener('click', () => {
+  // P4: Call SkyPointer.askMotion() on Re-centre tap so refreshed iPhones can re-enable motion in 1 tap
+  btnLobbyRecentre.addEventListener('click', async () => {
+    if (!SkyPointer.getState().hasOrientationEvent) {
+      const granted = await SkyPointer.askMotion();
+      updateLobbyMotionMessages(granted);
+    }
     SkyPointer.recentreNow();
   });
 
@@ -263,8 +281,9 @@
   }
 
   function formatDifficultyStars(difficulty) {
-    const d = Math.max(1, Math.min(3, Number(difficulty) || 1));
-    return '★'.repeat(d) + '☆'.repeat(3 - d);
+    const d = Math.max(1, Math.min(4, Number(difficulty) || 1));
+    const maxStars = Math.max(3, d);
+    return '★'.repeat(d) + '☆'.repeat(maxStars - d);
   }
 
   // --- Session Storage ---
@@ -390,6 +409,33 @@
     updateLobbyMotionMessages(!st.motionPermissionDenied);
   }
 
+  // P4: Add tap-to-enable motion recovery button in #lobby-motion-warn for refreshed iPhones
+  function renderMotionWarningWithButton(messageText) {
+    lobbyMotionWarn.innerHTML = '';
+    const p = document.createElement('p');
+    p.textContent = messageText;
+    lobbyMotionWarn.appendChild(p);
+
+    if (
+      typeof window.DeviceOrientationEvent !== 'undefined' &&
+      typeof window.DeviceOrientationEvent.requestPermission === 'function'
+    ) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-primary btn-tall';
+      btn.style.marginTop = '8px';
+      btn.textContent = 'Tap to Enable Motion';
+      btn.addEventListener('click', async () => {
+        const granted = await SkyPointer.askMotion();
+        SkyPointer.recentreNow();
+        updateLobbyMotionMessages(granted);
+      });
+      lobbyMotionWarn.appendChild(btn);
+    }
+
+    lobbyMotionWarn.classList.remove('hidden');
+  }
+
   function updateLobbyMotionMessages(granted) {
     if (lobbyNoMotionTimer) {
       clearTimeout(lobbyNoMotionTimer);
@@ -397,9 +443,9 @@
     }
 
     if (!granted || SkyPointer.getState().motionPermissionDenied) {
-      lobbyMotionWarn.textContent =
-        "Motion is blocked. Reload and tap Allow. If it doesn't ask again, check Safari's Motion & Orientation setting.";
-      lobbyMotionWarn.classList.remove('hidden');
+      renderMotionWarningWithButton(
+        "Motion is blocked. Reload and tap Allow. If it doesn't ask again, check Safari's Motion & Orientation setting."
+      );
       return;
     }
 
@@ -409,9 +455,9 @@
     if (!SkyPointer.getState().hasOrientationEvent) {
       lobbyNoMotionTimer = setTimeout(() => {
         if (currentScreen === 'lobby' && !SkyPointer.getState().hasOrientationEvent) {
-          lobbyMotionWarn.textContent =
-            "Your phone isn't sending motion. You can still watch the big screen.";
-          lobbyMotionWarn.classList.remove('hidden');
+          renderMotionWarningWithButton(
+            "Your phone isn't sending motion. Tap below or watch the big screen."
+          );
         }
       }, 1500);
     }
@@ -421,13 +467,15 @@
   function handleRoundStart(payload) {
     if (countdownRafId) cancelAnimationFrame(countdownRafId);
     if (drawRafId) cancelAnimationFrame(drawRafId);
+    if (replayRafId) cancelAnimationFrame(replayRafId);
 
-    activeRound = payload.round || 1;
+    isPracticeRound = Boolean(payload.practice || payload.round === 0);
+    activeRound = payload.round ?? (isPracticeRound ? 0 : 1);
     const totalRounds = payload.totalRounds || 3;
     activeShapeId = payload.shapeId;
-    activeShapeName = payload.shapeName || String(payload.shapeId || 'shape');
+    activeShapeName = payload.shapeName || String(payload.shapeId || 'circle');
     activeDifficulty = Number(payload.difficulty) || 1;
-    isMemoryRound = Boolean(payload.memory);
+    isMemoryRound = Boolean(payload.memory) && !isPracticeRound;
     roundSubmitted = false;
 
     const strokes =
@@ -446,7 +494,9 @@
     const durationMs = typeof payload.durationMs === 'number' ? payload.durationMs : 10000;
     const countdownMs = typeof payload.countdownMs === 'number' ? payload.countdownMs : 3000;
 
-    readyRoundPill.textContent = `ROUND ${activeRound} OF ${totalRounds}`;
+    readyRoundPill.textContent = isPracticeRound
+      ? 'PRACTICE ROUND'
+      : `ROUND ${activeRound} OF ${totalRounds}`;
     readyShapeTitle.textContent = activeShapeName.toUpperCase();
     readyDifficultyStars.textContent = formatDifficultyStars(activeDifficulty);
 
@@ -455,6 +505,13 @@
     readyShapeTitle.classList.remove('hidden');
     readyDifficultyStars.classList.remove('hidden');
     readyThumbWrap.classList.remove('hidden');
+
+    // V3 §1: Practice round banner
+    if (isPracticeRound) {
+      practiceBanner.classList.remove('hidden');
+    } else {
+      practiceBanner.classList.add('hidden');
+    }
 
     if (isMemoryRound) {
       memoryBanner.classList.remove('hidden');
@@ -470,14 +527,19 @@
     const startTs = performance.now();
     const endTs = startTs + countdownMs;
     let calStarted = false;
+    let calFinished = false;
 
     function tickCountdown(now) {
       const rem = Math.max(0, endTs - now);
 
-      // Calibrate on the last 500 ms of countdown
-      if (rem <= 500 && !calStarted) {
+      // P4: Calibrate during 1500 ms .. 400 ms before GO (rejects thumb-tap jolts right at GO)
+      if (rem <= 1500 && rem > 400 && !calStarted) {
         calStarted = true;
         SkyPointer.beginCalibrationWindow();
+      }
+      if (rem <= 400 && calStarted && !calFinished) {
+        calFinished = true;
+        SkyPointer.finishCalibrationWindow();
       }
 
       if (rem > 0) {
@@ -493,10 +555,10 @@
           readyShapeTitle.classList.add('hidden');
           readyDifficultyStars.classList.add('hidden');
         }
-        if (!calStarted) {
-          SkyPointer.beginCalibrationWindow();
+        if (!calFinished) {
+          if (!calStarted) SkyPointer.beginCalibrationWindow();
+          SkyPointer.finishCalibrationWindow();
         }
-        SkyPointer.finishCalibrationWindow();
         beginDrawScreen(durationMs);
       }
     }
@@ -512,10 +574,8 @@
     if (!strokes || strokes.length === 0) return;
 
     ctx.save();
-    ctx.strokeStyle = '#00f0ff';
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 12;
-    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#e8ff64'; // Matches host.css #target (--acid)
+    ctx.lineWidth = 7;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -537,6 +597,21 @@
   function beginDrawScreen(durationMs) {
     showScreen('draw');
     screens.draw.classList.remove('pen-held');
+
+    // V3 §1: Show practice banner and live line ONLY when practice is true (or ?debug=1); real rounds stay blind
+    if (isPracticeRound) {
+      drawPracticeBanner.classList.remove('hidden');
+    } else {
+      drawPracticeBanner.classList.add('hidden');
+    }
+
+    if (shouldShowLiveLine()) {
+      debugDrawCanvas.classList.remove('hidden');
+      renderDebugDrawCanvas(SkyPointer.getState());
+    } else {
+      debugDrawCanvas.classList.add('hidden');
+      debugDrawCtx.clearRect(0, 0, debugDrawCanvas.width, debugDrawCanvas.height);
+    }
 
     // Memory round: after GO, hide the shape name and difficulty stars too
     if (isMemoryRound) {
@@ -564,7 +639,7 @@
       drawProgressCircle.style.strokeDashoffset = `${offset.toFixed(2)}`;
       drawTimeLeft.textContent = `${Math.ceil(rem / 1000)}s`;
 
-      if (SkyPointer.DEBUG_MODE) {
+      if (shouldShowLiveLine()) {
         renderDebugDrawCanvas(SkyPointer.getState());
       }
 
@@ -583,12 +658,12 @@
     const h = debugDrawCanvas.height;
     debugDrawCtx.clearRect(0, 0, w, h);
 
-    // Target shape guide (unless memory round)
+    // Target shape guide in --acid (#e8ff64)
     if (!isMemoryRound && activeTargetStrokes.length > 0) {
       debugDrawCtx.save();
-      debugDrawCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-      debugDrawCtx.lineWidth = 4;
-      debugDrawCtx.setLineDash([8, 8]);
+      debugDrawCtx.strokeStyle = 'rgba(232, 255, 100, 0.38)';
+      debugDrawCtx.lineWidth = 5;
+      debugDrawCtx.setLineDash([10, 8]);
       for (const s of activeTargetStrokes) {
         if (!Array.isArray(s) || s.length < 2) continue;
         debugDrawCtx.beginPath();
@@ -603,10 +678,10 @@
       debugDrawCtx.restore();
     }
 
-    // Recorded strokes
+    // Recorded player strokes in --pink (#ffabcc)
     debugDrawCtx.save();
-    debugDrawCtx.strokeStyle = '#00f0ff';
-    debugDrawCtx.lineWidth = 5;
+    debugDrawCtx.strokeStyle = '#ffabcc';
+    debugDrawCtx.lineWidth = 7;
     debugDrawCtx.lineCap = 'round';
     debugDrawCtx.lineJoin = 'round';
     for (const s of st.strokes) {
@@ -624,10 +699,13 @@
 
     // Live cursor dot
     debugDrawCtx.save();
-    debugDrawCtx.fillStyle = st.penDown ? '#00f0ff' : '#f59e0b';
+    debugDrawCtx.fillStyle = st.penDown ? '#ffabcc' : '#e8ff64';
+    debugDrawCtx.strokeStyle = '#ffffff';
+    debugDrawCtx.lineWidth = 3;
     debugDrawCtx.beginPath();
-    debugDrawCtx.arc(st.sx * w, st.sy * h, 9, 0, Math.PI * 2);
+    debugDrawCtx.arc(st.sx * w, st.sy * h, 10, 0, Math.PI * 2);
     debugDrawCtx.fill();
+    debugDrawCtx.stroke();
     debugDrawCtx.restore();
   }
 
@@ -674,10 +752,90 @@
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
+  // V3 Item 4: Render & animate player's normalised pathStrokes over targetNormStrokes / targetNorm
+  function animateMiniReplay(targetStrokesNorm, playerStrokesNorm) {
+    if (replayRafId) cancelAnimationFrame(replayRafId);
+
+    const w = resReplayCanvas.width;
+    const h = resReplayCanvas.height;
+    // Normalised coordinates have centre (0,0) and RMS radius 1 (~[-2.3, 2.3] span -> w/5 scale, matching host overlay.js)
+    const scale = w / 5;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    const totalPlayerPts = (playerStrokesNorm || []).reduce(
+      (sum, s) => sum + (Array.isArray(s) ? s.length : 0),
+      0
+    );
+
+    const durationMs = 950;
+    const startTs = performance.now();
+
+    function drawFrame(now) {
+      const progress = Math.min(1, (now - startTs) / durationMs);
+      resReplayCtx.clearRect(0, 0, w, h);
+
+      // 1. Draw normalised target strokes in dashed acid/grey
+      if (Array.isArray(targetStrokesNorm) && targetStrokesNorm.length > 0) {
+        resReplayCtx.save();
+        resReplayCtx.strokeStyle = 'rgba(232, 255, 100, 0.45)';
+        resReplayCtx.lineWidth = 6;
+        resReplayCtx.lineCap = 'round';
+        resReplayCtx.lineJoin = 'round';
+        for (const stroke of targetStrokesNorm) {
+          if (!Array.isArray(stroke) || stroke.length < 2) continue;
+          resReplayCtx.beginPath();
+          for (let i = 0; i < stroke.length; i++) {
+            const px = cx + stroke[i][0] * scale;
+            const py = cy + stroke[i][1] * scale;
+            if (i === 0) resReplayCtx.moveTo(px, py);
+            else resReplayCtx.lineTo(px, py);
+          }
+          resReplayCtx.stroke();
+        }
+        resReplayCtx.restore();
+      }
+
+      // 2. Draw player's normalised pathStrokes up to `progress`
+      if (totalPlayerPts > 0 && Array.isArray(playerStrokesNorm)) {
+        let ptsBudget = Math.max(2, Math.ceil(totalPlayerPts * progress));
+        resReplayCtx.save();
+        resReplayCtx.strokeStyle = '#ffabcc';
+        resReplayCtx.lineWidth = 7;
+        resReplayCtx.lineCap = 'round';
+        resReplayCtx.lineJoin = 'round';
+
+        for (const stroke of playerStrokesNorm) {
+          if (!Array.isArray(stroke) || stroke.length < 2 || ptsBudget <= 0) continue;
+          const count = Math.min(stroke.length, ptsBudget);
+          ptsBudget -= count;
+          if (count < 2) continue;
+
+          resReplayCtx.beginPath();
+          for (let i = 0; i < count; i++) {
+            const px = cx + stroke[i][0] * scale;
+            const py = cy + stroke[i][1] * scale;
+            if (i === 0) resReplayCtx.moveTo(px, py);
+            else resReplayCtx.lineTo(px, py);
+          }
+          resReplayCtx.stroke();
+        }
+        resReplayCtx.restore();
+      }
+
+      if (progress < 1) {
+        replayRafId = requestAnimationFrame(drawFrame);
+      }
+    }
+
+    replayRafId = requestAnimationFrame(drawFrame);
+  }
+
   // Screen 6: Results (on round:results, then round:extras)
   function handleRoundResults(payload) {
     releaseWakeLock();
-    const round = payload.round || activeRound || 1;
+    const practice = Boolean(payload.practice || payload.round === 0 || isPracticeRound);
+    const round = payload.round ?? activeRound ?? (practice ? 0 : 1);
     activeRound = round;
     const shapeId = payload.shapeId ?? activeShapeId;
     const shapeName = payload.shapeName || activeShapeName || 'shape';
@@ -687,7 +845,23 @@
     const totalReal = realPlayers.length || results.length || 1;
     const mine = results.find((r) => r.playerId === playerId);
 
-    resRoundLabel.textContent = `ROUND ${round}`;
+    if (practice) {
+      resPracticeBanner.classList.remove('hidden');
+      resRoundLabel.textContent = 'PRACTICE ROUND';
+    } else {
+      resPracticeBanner.classList.add('hidden');
+      resRoundLabel.textContent = `ROUND ${round}`;
+    }
+
+    // Extract targetNormStrokes (V3 §2) or fallback to [targetNorm]
+    const targetNormStrokes =
+      Array.isArray(payload.targetNormStrokes) && payload.targetNormStrokes.length > 0
+        ? payload.targetNormStrokes
+        : Array.isArray(payload.targetNorm) && payload.targetNorm.length > 0
+        ? [payload.targetNorm]
+        : [];
+    const myPathStrokes = mine && Array.isArray(mine.pathStrokes) ? mine.pathStrokes : [];
+    animateMiniReplay(targetNormStrokes, myPathStrokes);
 
     const isValid = mine ? mine.valid !== false : false;
     if (!mine || !isValid) {
@@ -714,8 +888,6 @@
       valCoverage.textContent = `${covVal}%`;
       barCoverage.style.width = `${Math.max(0, Math.min(100, covVal))}%`;
 
-      // Guess line: "Snowflake recognised your star" if guess.shapeId equals shapeId,
-      // otherwise "Snowflake thinks you drew {guess.label}".
       if (mine.guess && mine.guess.label) {
         const matched =
           String(mine.guess.shapeId) === String(shapeId) ||
@@ -730,11 +902,10 @@
       }
     }
 
-    const roundPts = mine ? (mine.roundPoints ?? mine.points ?? 0) : 0;
+    const roundPts = practice ? 0 : mine ? (mine.roundPoints ?? mine.points ?? 0) : 0;
     const totalPts = mine ? (mine.totalPoints ?? roundPts) : 0;
     resPoints.textContent = `+${roundPts} · total ${totalPts}`;
 
-    // Comment & Percentile (may already be in mine.comment or arrive via round:extras)
     resPercentile.classList.add('hidden');
     resPercentile.textContent = '';
 
@@ -744,14 +915,13 @@
       resComment.textContent = 'Snowflake is writing a joke...';
     }
 
-    // Apply any already-received round:extras for this round
     applyExtrasToResultsUI(round, shapeName);
     showScreen('results');
   }
 
   function handleRoundExtras(payload) {
     if (!payload) return;
-    const round = payload.round || activeRound;
+    const round = payload.round ?? activeRound;
     const prev = extrasByRound.get(round) || { comments: {}, percentiles: {} };
 
     if (payload.comments && typeof payload.comments === 'object') {
@@ -861,7 +1031,6 @@
     });
 
     socket.on('lobby:update', () => {
-      // If host clicked Play Again (host:again), return phone from final/results to lobby
       if (hasJoinedRoom && (currentScreen === 'final' || currentScreen === 'results')) {
         enterLobby();
       }
