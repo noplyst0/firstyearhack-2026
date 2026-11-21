@@ -3,7 +3,7 @@
 // Login: backend/.env (never committed). Variables: SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER,
 // SNOWFLAKE_PASSWORD or SNOWFLAKE_PRIVATE_KEY_PATH, SNOWFLAKE_ROLE, SNOWFLAKE_WAREHOUSE (SKY_WH),
 // SNOWFLAKE_DATABASE (SKYSKETCH), SNOWFLAKE_SCHEMA (GAME), SNOWFLAKE_MODEL.
-// Stretch functions (saveTarget, roomView, roomVerdict, visionGuess) are not written yet.
+// Not written (AI blocked on trial / out of scope): saveTarget, roomVerdict, visionGuess.
 
 const fs = require('fs');
 const path = require('path');
@@ -24,7 +24,8 @@ const SQL = {
   read: statements(sqlFile('read_round.sql'))[0],
   percentiles: statements(sqlFile('percentiles.sql'))[0],
   ghostPool: statements(sqlFile('ghost_pool.sql'))[0],
-  stats: statements(sqlFile('stats.sql')), // [headline, byShape]
+  stats: statements(sqlFile('stats.sql')), // 6 statements, see stats.sql
+  roomView: statements(sqlFile('room_view.sql'))[0],
 };
 
 let conn = null;
@@ -110,18 +111,18 @@ function saveGame({ gameId, code, isTest }) {
   return query('INSERT INTO GAMES (game_id, room_code, is_test) VALUES (?, ?, ?)', [gameId, code, !!isTest]);
 }
 
-// attempts: [{ attemptId, playerId, isBot, valid, nRaw, nStrokes, durationMs, submittedAt, rawStrokes, pathStrokes }]
+// attempts: [{ attemptId, playerId, playerName, isPractice, isBot, valid, nRaw, nStrokes, durationMs, submittedAt, rawStrokes, pathStrokes }]
 // returns [{ attemptId, accuracy, onLine, coverage, score, rank, roundPoints, guess: { shapeId, label, score } }]
 async function saveAndScoreRound({ gameId, round, shapeId, attempts }) {
   if (!attempts.length) return [];
   const attemptRows = attempts.map((a) => [
     a.attemptId, gameId, round, a.playerId, shapeId, !!a.isBot,
     a.nRaw ?? null, a.nStrokes ?? null, a.durationMs ?? null, tsNtz(a.submittedAt),
-    JSON.stringify(a.rawStrokes ?? []),
+    JSON.stringify(a.rawStrokes ?? []), a.playerName ?? null, !!a.isPractice,
   ]);
   await query(
     `INSERT INTO ATTEMPTS (attempt_id, game_id, round, player_id, shape_id, is_bot, n_raw_points, n_strokes,
-       duration_ms, submitted_at, raw_strokes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       duration_ms, submitted_at, raw_strokes, player_name, is_practice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     attemptRows
   );
 
@@ -179,27 +180,64 @@ async function percentiles({ shapeId, gameId, round }) {
   return out;
 }
 
-// -> [{ attemptId, pathStrokes }]
+// -> [{ attemptId, pathStrokes, band: 'top' | 'mid' | 'bottom', score }], stratified ~20/60/20 (ghost_pool.sql)
 async function ghostPool({ shapeId, count }) {
   const limit = Math.max(1, Math.min(50, Math.floor(Number(count)) || 20));
   const rows = await query(SQL.ghostPool.replace('{{LIMIT}}', String(limit)), [shapeId]);
   return rows.map((r) => {
     const strokes = [];
     for (const [s, x, y] of parseMaybe(r.PTS)) (strokes[s] ||= []).push([x, y]);
-    return { attemptId: r.ATTEMPT_ID, pathStrokes: strokes.filter(Boolean) };
+    return { attemptId: r.ATTEMPT_ID, pathStrokes: strokes.filter(Boolean), band: r.BAND, score: r.SCORE };
   });
 }
 
-// -> { totalAttempts, totalGames, bestEver, hardestShape, commonWrongGuess, avgByShape: [{ shape, avg, n }] }
-async function gameStats() {
-  const [[h], byShape] = await Promise.all([query(SQL.stats[0]), query(SQL.stats[1])]);
+// gameStats({ gameId? }) -> plan/V3.md contract 4. Any field may be null.
+// { totalAttempts, totalGames, hardestShape, bestEver: { name, score, shape }, steadiest: { name, tremor },
+//   mostImproved: { name, gain }, confusion: { shape, label, pct }, perShape: [{ shape, avg, n }],
+//   commonWrongGuess, avgByShape }   (last two kept for v2 callers)
+// steadiest and mostImproved cover this game when gameId is given, otherwise all time.
+async function gameStats({ gameId = null } = {}) {
+  const g = gameId || null;
+  const [[h], [best], [steady], [improved], [conf], byShape] = await Promise.all([
+    query(SQL.stats[0]),
+    query(SQL.stats[1]),
+    query(SQL.stats[2], [g, g]),
+    query(SQL.stats[3], [g, g]),
+    query(SQL.stats[4]),
+    query(SQL.stats[5]),
+  ]);
+  const perShape = byShape.map((r) => ({ shape: r.SHAPE, avg: r.AVG_SCORE, n: Number(r.N) }));
+  const confusion = conf ? { shape: conf.SHAPE, label: conf.LABEL, pct: Number(conf.PCT) } : null;
   return {
     totalAttempts: Number(h.TOTAL_ATTEMPTS),
     totalGames: Number(h.TOTAL_GAMES),
-    bestEver: h.BEST_EVER,
     hardestShape: h.HARDEST_SHAPE,
-    commonWrongGuess: h.COMMON_WRONG_GUESS,
-    avgByShape: byShape.map((r) => ({ shape: r.SHAPE, avg: r.AVG_SCORE, n: Number(r.N) })),
+    bestEver: best ? { name: best.NAME, score: best.SCORE, shape: best.SHAPE } : null,
+    steadiest: steady ? { name: steady.NAME, tremor: steady.TREMOR } : null,
+    mostImproved: improved ? { name: improved.NAME, gain: improved.GAIN } : null,
+    confusion,
+    perShape,
+    commonWrongGuess: confusion ? confusion.label : null,
+    avgByShape: perShape,
+  };
+}
+
+const splitStrokes = (rows) => {
+  const out = [];
+  for (const r of rows) (out[Number(r.STROKE) || 0] ||= []).push([r.CX, r.CY]);
+  return out.filter(Boolean);
+};
+
+// roomView({ gameId, round }) -> { heat: [256 numbers 0..1, 1 = room missed most],
+//   crowd: { path: [[x,y] x256], strokes: [[[x,y]...]...] (same points split per target stroke), score },
+//   alone: room average score } or null when the round has no real drawings. Points are normalised (like targetNorm).
+async function roomView({ gameId, round }) {
+  const rows = await query(SQL.roomView, [gameId, round, gameId, round]);
+  if (!rows.length) return null;
+  return {
+    heat: rows.map((r) => (r.HEAT == null ? 0 : Number(r.HEAT))),
+    crowd: { path: rows.map((r) => [r.CX, r.CY]), strokes: splitStrokes(rows), score: rows[0].CROWD_SCORE },
+    alone: rows[0].ALONE,
   };
 }
 
@@ -211,6 +249,6 @@ function disconnect() {
 }
 
 module.exports = {
-  init, ping, saveGame, saveAndScoreRound, comments, percentiles, ghostPool, gameStats,
+  init, ping, saveGame, saveAndScoreRound, comments, percentiles, ghostPool, gameStats, roomView,
   query, disconnect, statements,
 };
