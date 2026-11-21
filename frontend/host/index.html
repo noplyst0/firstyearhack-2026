@@ -35,10 +35,21 @@
       </svg>
     </section>
     <section id="lobby" hidden>
+      <div class="lobby-panels">
       <div class="join card"><div><h2>Room code</h2><strong id="code"></strong>
         <p>Scan to join on your phone.</p></div>
         <div class="ticket"><div id="qr" hidden aria-label="QR code to open the phone page"></div><a id="phone" href="/"></a></div>
       </div>
+      <aside class="card how-to"><h2>How to play</h2>
+        <p>Your phone is a flashlight. Point it at the screen and hold your thumb down to draw where it shines. Move your whole arm to trace the shape. Lift your thumb to stop drawing.</p>
+        <svg viewBox="0 0 320 74" role="img" aria-label="A phone projects a beam toward a dot on the screen">
+          <path fill="#fff5d7" d="M47 35 249 13v48L47 43z"/>
+          <path stroke="#22142d" stroke-width="2" stroke-dasharray="6 5" d="M48 39h188"/>
+          <g stroke="#22142d" stroke-width="4" transform="rotate(-10 35 38)"><rect x="19" y="9" width="34" height="57" rx="7" fill="#ffabcc"/><path d="M29 16h12"/></g>
+          <rect x="237" y="7" width="72" height="54" rx="5" fill="#22142d"/><path d="M273 61v7m-18 1h36" stroke="#22142d" stroke-width="5"/>
+          <circle cx="254" cy="38" r="10" fill="#e8ff64"/><circle cx="254" cy="38" r="4" fill="white"/>
+        </svg>
+      </aside></div>
       <div class="row"><h2>Players <span id="count">0</span></h2><div class="controls"><label>Rounds <select id="rounds"><option>3</option><option>5</option></select></label><button id="bots">Add 20 ghosts</button><button id="start" disabled>Start game →</button></div></div>
       <ul id="players" aria-label="Players in the lobby"></ul><p id="empty">Waiting for players to join…</p>
     </section>
@@ -54,14 +65,16 @@
     <section id="judging" class="card judging" hidden>
       <h2 id="judge-title">Judging drawings…</h2><p id="checks"></p>
     </section>
-    <section id="results" hidden>
-      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><button id="next">Next round →</button></div>
+    <section id="drawing-reveal" aria-label="Drawing reveal" hidden>
       <div id="reveal-stage" class="stage">
         <svg id="overlay" viewBox="-250 -250 500 500" role="img" aria-label="Drawings over the target"></svg>
         <div id="confetti" aria-hidden="true"></div>
       </div>
       <div id="spotlight" class="card"><strong id="performer"></strong><span id="score"></span><p id="quote"></p></div>
-      <div id="rankings" hidden><h2>Round standings</h2><ol id="rank-list"></ol></div>
+    </section>
+    <section id="results" hidden>
+      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><button id="next">Next round →</button></div>
+      <div id="rankings"><h2>Round standings</h2><ol id="rank-list"></ol></div>
       <p id="ghost-summary"></p>
     </section>
     <section id="final" hidden>
