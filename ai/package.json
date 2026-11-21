@@ -1,0 +1,11 @@
+{
+  "name": "skysketch-ai",
+  "private": true,
+  "main": "snowflake.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "snowflake-sdk": "^3.4.1"
+  }
+}
