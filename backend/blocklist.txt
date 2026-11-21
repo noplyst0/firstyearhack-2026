@@ -1,0 +1,7 @@
+# Extra blocked words for names and AI comments, one per line (lowercase). The obscenity package covers the usual list.
+nazi
+hitler
+rape
+retard
+paedo
+pedo
