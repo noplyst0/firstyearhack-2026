@@ -15,7 +15,7 @@ SELECT
      GROUP BY t.name HAVING COUNT(*) >= 5 ORDER BY AVG(ra.final_score) ASC LIMIT 1) AS hardest_shape;
 
 -- 2. bestEver: the single best real drawing of all time, with who drew it and which shape
-SELECT COALESCE(a.player_name, a.player_id) AS name, s.final_score AS score, t.name AS shape
+SELECT COALESCE(a.player_name, 'A past player') AS name, s.final_score AS score, t.name AS shape
 FROM ATTEMPTS a
 JOIN SCORES s ON s.attempt_id = a.attempt_id
 JOIN TARGETS t ON t.shape_id = a.shape_id
@@ -25,7 +25,7 @@ QUALIFY ROW_NUMBER() OVER (ORDER BY s.final_score DESC, a.submitted_at ASC) = 1;
 -- 3. steadiest: lowest tremor. Per stroke, heading = ATAN2 of each step (LAG over idx); turn = change in heading,
 --    wrapped to [-pi, pi]; tremor = STDDEV of the turns per drawing (degrees), averaged per player. Lower = steadier.
 WITH pts AS (
-  SELECT p.attempt_id, p.stroke, p.idx, p.x, p.y, COALESCE(a.player_name, a.player_id) AS name
+  SELECT p.attempt_id, p.stroke, p.idx, p.x, p.y, COALESCE(a.player_name, 'A past player') AS name
   FROM ATTEMPT_POINTS p JOIN ATTEMPTS a ON a.attempt_id = p.attempt_id
   WHERE NOT a.is_bot AND NOT COALESCE(a.is_practice, FALSE) AND a.game_id NOT LIKE 'TEST%'
     AND (? IS NULL OR a.game_id = ?)),
@@ -49,7 +49,7 @@ QUALIFY ROW_NUMBER() OVER (ORDER BY AVG(tremor) ASC) = 1;
 
 -- 4. mostImproved: biggest jump from one real round to the next for the same player in the same game (LAG over rounds)
 WITH r AS (
-  SELECT COALESCE(a.player_name, a.player_id) AS name, a.game_id, a.player_id, a.round, s.final_score,
+  SELECT COALESCE(a.player_name, 'A past player') AS name, a.game_id, a.player_id, a.round, s.final_score,
          s.final_score - LAG(s.final_score) OVER (PARTITION BY a.game_id, a.player_id ORDER BY a.round) AS gain
   FROM ATTEMPTS a JOIN SCORES s ON s.attempt_id = a.attempt_id
   WHERE NOT a.is_bot AND NOT COALESCE(a.is_practice, FALSE) AND a.game_id NOT LIKE 'TEST%'
