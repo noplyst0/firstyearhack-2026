@@ -26,15 +26,17 @@ test('slow snowflake -> local scorer, AI comment cleaned, stats from snowflake',
     await call(host, 'host:start', { code, rounds: 3 });
     await started;
     const pts = Array.from({ length: 60 }, (_, i) => [0.5 + 0.3 * Math.cos(i / 9.4), 0.5 + 0.3 * Math.sin(i / 9.4)]);
-    await call(a, 'player:submit', { code, playerId, round: 1, strokes: [pts], points: pts });
+    await call(a, 'player:submit', { code, playerId, round: 0, strokes: [pts], points: pts }); // practice round
     const res = await results;
     assert.strictEqual(res.scorer, 'local');
     assert.ok(res.judgeMs >= 200 && res.judgeMs < 1000, 'judgeMs ' + res.judgeMs);
     assert.strictEqual(mock.calls[0].attempts[0].submittedAt.length, 24, 'real ISO submit time passed to Snowflake');
+    assert.strictEqual(mock.calls[0].attempts[0].isPractice, true);
+    assert.strictEqual(res.practice, true);
     const ex = await extras;
     assert.strictEqual(ex.comments[playerId], 'What a lovely wobbly circle, truly');
     const end = ev(host, 'game:end');
-    for (const r of [2, 3]) {
+    for (const r of [1, 2, 3]) {
       await call(host, 'host:next', { code });
       await ev(host, 'round:results');
     }

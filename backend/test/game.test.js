@@ -65,10 +65,27 @@ test('join rules, ghosts, 3 rounds, duplicate + missing submit, extras, game end
   const l = await lobby;
   assert.deepStrictEqual(l.players.map((p) => [p.name, p.isBot]), [['Asim', false], ['Faizan', false], ['Ghost 1', true], ['Ghost 2', true]]);
 
-  // round 1: Asim submits a circle, then a line (ignored). Faizan never submits.
-  const r1 = once(a, 'round:start');
+  // practice round 0: scored and ranked, but no points
+  const st0 = once(a, 'round:start');
   assert.ok((await call(host, 'host:start', { code, rounds: 3 })).ok);
+  const p0 = await st0;
+  assert.strictEqual(p0.round, 0); assert.strictEqual(p0.practice, true); assert.strictEqual(p0.totalRounds, 3);
+  assert.strictEqual(p0.shapeId, 1); assert.strictEqual(p0.durationMs, Math.round(10000 * timing.durationScale)); assert.strictEqual(p0.memory, false);
+  await submit(a, code, ja.playerId, 0, circle());
+  await submit(b, code, jb.playerId, 0, line());
+  await once(host, 'round:judging');
+  const pr = await once(host, 'round:results');
+  assert.strictEqual(pr.practice, true); assert.strictEqual(pr.round, 0);
+  assert.deepStrictEqual(pr.results.filter((r) => !r.isBot).map((r) => [r.name, r.rank, r.roundPoints, r.totalPoints]), [['Asim', 1, 0, 0], ['Faizan', 2, 0, 0]]);
+  assert.ok(pr.results.filter((r) => r.isBot).every((r) => r.roundPoints === 0 && r.rank === null));
+  await once(host, 'round:extras');
+
+  // round 1: Asim submits a circle, then a line (ignored). Faizan never submits.
+  drain(a, 'round:start');
+  const r1 = once(a, 'round:start');
+  assert.ok((await call(host, 'host:next', { code })).ok);
   const rs = await r1;
+  assert.strictEqual(rs.practice, false);
   assert.strictEqual(rs.round, 1); assert.strictEqual(rs.totalRounds, 3); assert.strictEqual(rs.shapeId, 1);
   assert.strictEqual(rs.memory, false); assert.ok(rs.targetStrokes.length && rs.targetPoints.length);
   assert.strictEqual(rs.fov, 40); assert.strictEqual(rs.smoothing, 0.35);
@@ -194,8 +211,8 @@ test('results auto-advance counts real players only (ghosts excluded) and fires 
     await call(host, 'host:start', { code, rounds: 3 });
     await firstStart;
     const results = got('round:results');
-    await submit(a, code, ja.playerId, 1, circle());
-    await submit(b, code, jb.playerId, 1, circle());
+    await submit(a, code, ja.playerId, 0, circle()); // practice round
+    await submit(b, code, jb.playerId, 0, circle());
     await results;
     const t0 = Date.now();
     await got('round:start');
@@ -204,4 +221,54 @@ test('results auto-advance counts real players only (ghosts excluded) and fires 
   } finally {
     await fast.close();
   }
+});
+
+test('practice round: no points, kept out of stats and the attempts file, then 3 real rounds', async () => {
+  const fs = require('fs');
+  const file = require('../store').FILE;
+  const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).length : 0;
+  const host = sock(), a = sock();
+  const { code } = await call(host, 'host:create', {}); // a real (non-TEST) game, so attempts are stored
+  const { playerId } = await call(a, 'player:join', { code, name: 'Practiser' });
+  const starts = [];
+  a.on('round:start', (r) => starts.push([r.round, r.practice, r.memory, r.shapeId]));
+  await call(host, 'host:start', { code, rounds: 3 });
+  const totals = [];
+  for (let round = 0; round <= 3; round++) {
+    await once(a, 'round:start');
+    await submit(a, code, playerId, round, circle());
+    const res = await once(host, 'round:results');
+    assert.strictEqual(res.round, round);
+    assert.strictEqual(res.practice, round === 0);
+    const me = res.results[0];
+    assert.strictEqual(me.rank, 1, 'practice still ranks');
+    totals.push([me.roundPoints, me.totalPoints]);
+    const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).length : 0;
+    assert.strictEqual(lines - before, round, `after round ${round} the file should hold ${round} new attempts`);
+    if (round < 3) await call(host, 'host:next', { code });
+  }
+  assert.deepStrictEqual(starts, [[0, true, false, 1], [1, false, false, 1], [2, false, false, 2], [3, false, true, 4]]);
+  assert.deepStrictEqual(totals, [[0, 0], [300, 300], [300, 600], [300, 900]]);
+  const end = once(host, 'game:end');
+  await call(host, 'host:next', { code });
+  const ge = await end;
+  assert.deepStrictEqual(ge.leaderboard, [{ playerId, name: 'Practiser', total: 900 }]);
+  assert.strictEqual(ge.stats.totalAttempts, 3, 'practice excluded from stats');
+  assert.deepStrictEqual(ge.stats.avgByShape.map((s) => s.shape), ['circle', 'triangle', 'star']);
+});
+
+test('a late submit for the practice round is refused once round 1 starts', async () => {
+  const host = sock(), a = sock(), b = sock();
+  const { code } = await call(host, 'host:create', { test: true });
+  const ja = await call(a, 'player:join', { code, name: 'Quick' });
+  const jb = await call(b, 'player:join', { code, name: 'Slow' });
+  await call(host, 'host:start', { code, rounds: 3 });
+  await once(a, 'round:start');
+  await submit(a, code, ja.playerId, 0, circle());
+  await once(host, 'round:results'); // Slow missed practice: timer ended it
+  await call(host, 'host:next', { code });
+  await once(host, 'round:start');
+  await once(host, 'round:start');
+  assert.strictEqual((await submit(b, code, jb.playerId, 0, circle())).error, 'ROUND_CLOSED');
+  assert.ok((await submit(b, code, jb.playerId, 1, circle())).ok);
 });

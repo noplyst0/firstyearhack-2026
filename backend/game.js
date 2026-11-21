@@ -122,7 +122,7 @@ function createGame(io, opts = {}) {
   // ---------- rounds ----------
   function startRound(room) {
     room.round += 1;
-    const step = room.plan[room.round - 1];
+    const step = room.plan[room.round]; // plan[0] = practice round 0
     const shape = byId(step.shapeId) || byId(1);
     const durationMs = Math.round(step.durationMs * T.durationScale);
     room.subs = new Map();
@@ -131,10 +131,11 @@ function createGame(io, opts = {}) {
     room.goAt = Date.now() + T.countdownMs;
     room.shape = shape;
     room.durationMs = durationMs;
+    room.practice = !!step.practice;
     const payload = {
       round: room.round, totalRounds: room.rounds, shapeId: shape.id, shapeName: shape.name,
       difficulty: shape.difficulty, targetStrokes: shape.strokes, targetPoints: shape.strokes.flat(),
-      durationMs, countdownMs: T.countdownMs, memory: room.round === room.rounds,
+      durationMs, countdownMs: T.countdownMs, memory: !room.practice && room.round === room.rounds, practice: room.practice,
       fov: C.FOV, smoothing: C.SMOOTHING,
     };
     emit(room, 'round:start', payload);
@@ -142,7 +143,7 @@ function createGame(io, opts = {}) {
     room.ghostPromise.catch(() => {});
     setTimer(room, 'round', T.countdownMs + durationMs + T.graceMs, () => judge(room));
     emitProgress(room);
-    log(`[${room.code}] round ${room.round}/${room.rounds} start: ${shape.name}${payload.memory ? ' (memory)' : ''}`);
+    log(`[${room.code}] round ${room.round}/${room.rounds} start: ${shape.name}${payload.memory ? ' (memory)' : ''}${room.practice ? ' (practice)' : ''}`);
   }
 
   async function prepareGhosts(room, shape) {
@@ -194,7 +195,7 @@ function createGame(io, opts = {}) {
     if (room.state !== 'ROUND_ACTIVE') return;
     room.state = 'JUDGING';
     clearTimer(room, 'round');
-    const { round, gameId, shape } = room;
+    const { round, gameId, shape, practice } = room;
     const t0 = Date.now();
 
     const attempts = [];
@@ -206,7 +207,7 @@ function createGame(io, opts = {}) {
         nRaw: sub ? sub.nRaw : 0, nStrokes: sub ? sub.strokes.length : 0,
         durationMs: sub ? Math.max(0, sub.receivedAt - room.goAt) : 0,
         submittedAt: sub ? new Date(sub.receivedAt).toISOString() : null,
-        rawStrokes: sub ? sub.strokes : [], pathStrokes: d.pathStrokes, missing: !sub,
+        rawStrokes: sub ? sub.strokes : [], pathStrokes: d.pathStrokes, missing: !sub, isPractice: practice,
       });
     }
     let ghostDraws = [];
@@ -220,7 +221,7 @@ function createGame(io, opts = {}) {
         attemptId: `${gameId}-${round}-${g.id}`, playerId: g.id, isBot: true, valid: d.valid,
         nRaw: draw.strokes.flat().length, nStrokes: draw.strokes.length, durationMs: room.durationMs,
         submittedAt: new Date(room.goAt + room.durationMs).toISOString(),
-        rawStrokes: draw.strokes, pathStrokes: d.pathStrokes, ghostSource: draw.source,
+        rawStrokes: draw.strokes, pathStrokes: d.pathStrokes, ghostSource: draw.source, isPractice: practice,
       });
     });
 
@@ -256,6 +257,7 @@ function createGame(io, opts = {}) {
       a.guess = r && r.guess ? { shapeId: r.guess.shapeId, label: r.guess.label, score: S.round1(+r.guess.score) } : null;
     }
     S.rankAttempts(attempts);
+    if (practice) for (const a of attempts) a.roundPoints = 0; // practice: ranks shown, no points
 
     const ranked = attempts.filter((a) => a.rank).sort((a, b) => a.rank - b.rank);
     const featured = ranked.slice(0, 3);
@@ -273,7 +275,7 @@ function createGame(io, opts = {}) {
       if (!p) continue;
       p.total += a.roundPoints;
       const score = a.valid ? S.round1(a.accuracy) : 0;
-      if (a.valid && score > p.best) p.best = score;
+      if (a.valid && !practice && score > p.best) p.best = score;
       results.push({
         playerId: p.id, name: p.name, isBot: p.isBot, valid: a.valid, score,
         accuracy: S.round1(a.accuracy), onLine: S.round1(a.onLine), coverage: S.round1(a.coverage),
@@ -287,15 +289,15 @@ function createGame(io, opts = {}) {
 
     room.state = 'RESULTS';
     emit(room, 'round:results', {
-      round, shapeId: shape.id, shapeName: shape.name, targetNorm: shape.norm, scorer, judgeMs, winner, results,
+      round, practice, shapeId: shape.id, shapeName: shape.name, targetNorm: shape.norm, scorer, judgeMs, winner, results,
     });
-    room.history.push({ round, shapeId: shape.id, shapeName: shape.name, results });
+    room.history.push({ round, practice, shapeId: shape.id, shapeName: shape.name, results });
     log(`[${room.code}] round ${round} results: scorer ${scorer}, judge ${judgeMs} ms, ${validCount} drawings, winner ${winner ? winner.name + ' ' + winner.score : 'none'}, next in ${resultsDelayMs(realPlayers(room).length, T) / 1000} s`);
 
     // local percentile pool is read before this round is appended
     const scoresByPlayer = Object.fromEntries(ranked.map((a) => [a.playerId, S.round1(a.accuracy)]));
     const localPct = store.percentiles(shape.id, scoresByPlayer);
-    if (!room.isTest) {
+    if (!room.isTest && !practice) { // practice attempts never feed ghosts or percentiles
       const at = new Date().toISOString();
       store.append(ranked.map((a) => ({ gameId, round, shapeId: shape.id, pathStrokes: a.pathStrokes, score: S.round1(a.accuracy), at })));
     }
@@ -360,8 +362,9 @@ function createGame(io, opts = {}) {
   }
 
   function localStats(room) {
-    const valid = room.history.flatMap((h) => h.results.filter((r) => !r.isBot && r.valid).map((r) => ({ ...r, shapeId: h.shapeId, shape: h.shapeName })));
-    const avgByShape = room.history.map((h) => {
+    const real = room.history.filter((h) => !h.practice); // stats exclude the practice round
+    const valid = real.flatMap((h) => h.results.filter((r) => !r.isBot && r.valid).map((r) => ({ ...r, shapeId: h.shapeId, shape: h.shapeName })));
+    const avgByShape = real.map((h) => {
       const rs = h.results.filter((r) => !r.isBot && r.valid);
       return { shape: h.shapeName, avg: rs.length ? S.round1(rs.reduce((a, r) => a + r.score, 0) / rs.length) : 0, n: rs.length };
     });
@@ -483,7 +486,7 @@ function createGame(io, opts = {}) {
       if (!room.players.size) return ack({ ok: false, error: 'NO_PLAYERS' });
       room.rounds = Number(data.rounds) === 5 ? 5 : 3;
       room.plan = shapes.roundPlan(room.rounds);
-      room.round = 0;
+      room.round = -1; // startRound moves to 0, the practice round
       resetTotals(room);
       log(`[${room.code}] start: ${room.rounds} rounds, ${realPlayers(room).length} players, ${ghostList(room).length} ghosts`);
       ack({ ok: true });
