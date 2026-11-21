@@ -1,4 +1,4 @@
-// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (plan/phone.md)
+// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (plan/phone.md + V3 P1-P5)
 (() => {
   'use strict';
 
@@ -178,9 +178,9 @@
   SkyPointer.bindPadEvents(screens.draw, lobbyTestBox);
 
   SkyPointer.onUpdate((st) => {
-    // Update ?debug=1 HUD
+    // P5: Update ?debug=1 HUD including e.absolute flag
     if (SkyPointer.DEBUG_MODE) {
-      debugReadout.textContent = `yaw: ${st.yaw.toFixed(1)}° | pitch: ${st.pitch.toFixed(1)}° | x: ${st.sx.toFixed(2)} | y: ${st.sy.toFixed(2)}`;
+      debugReadout.textContent = `yaw: ${st.yaw.toFixed(1)}° | pitch: ${st.pitch.toFixed(1)}° | x: ${st.sx.toFixed(2)} | y: ${st.sy.toFixed(2)} | abs:${st.absolute ? 1 : 0}`;
       if (currentScreen === 'draw') {
         renderDebugDrawCanvas(st);
       }
@@ -213,7 +213,12 @@
     }
   });
 
-  btnLobbyRecentre.addEventListener('click', () => {
+  // P4: Call SkyPointer.askMotion() on Re-centre tap so refreshed iPhones can re-enable motion in 1 tap
+  btnLobbyRecentre.addEventListener('click', async () => {
+    if (!SkyPointer.getState().hasOrientationEvent) {
+      const granted = await SkyPointer.askMotion();
+      updateLobbyMotionMessages(granted);
+    }
     SkyPointer.recentreNow();
   });
 
@@ -390,6 +395,33 @@
     updateLobbyMotionMessages(!st.motionPermissionDenied);
   }
 
+  // P4: Add tap-to-enable motion recovery button in #lobby-motion-warn for refreshed iPhones
+  function renderMotionWarningWithButton(messageText) {
+    lobbyMotionWarn.innerHTML = '';
+    const p = document.createElement('p');
+    p.textContent = messageText;
+    lobbyMotionWarn.appendChild(p);
+
+    if (
+      typeof window.DeviceOrientationEvent !== 'undefined' &&
+      typeof window.DeviceOrientationEvent.requestPermission === 'function'
+    ) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-primary btn-tall';
+      btn.style.marginTop = '8px';
+      btn.textContent = 'Tap to Enable Motion';
+      btn.addEventListener('click', async () => {
+        const granted = await SkyPointer.askMotion();
+        SkyPointer.recentreNow();
+        updateLobbyMotionMessages(granted);
+      });
+      lobbyMotionWarn.appendChild(btn);
+    }
+
+    lobbyMotionWarn.classList.remove('hidden');
+  }
+
   function updateLobbyMotionMessages(granted) {
     if (lobbyNoMotionTimer) {
       clearTimeout(lobbyNoMotionTimer);
@@ -397,9 +429,9 @@
     }
 
     if (!granted || SkyPointer.getState().motionPermissionDenied) {
-      lobbyMotionWarn.textContent =
-        "Motion is blocked. Reload and tap Allow. If it doesn't ask again, check Safari's Motion & Orientation setting.";
-      lobbyMotionWarn.classList.remove('hidden');
+      renderMotionWarningWithButton(
+        "Motion is blocked. Reload and tap Allow. If it doesn't ask again, check Safari's Motion & Orientation setting."
+      );
       return;
     }
 
@@ -409,9 +441,9 @@
     if (!SkyPointer.getState().hasOrientationEvent) {
       lobbyNoMotionTimer = setTimeout(() => {
         if (currentScreen === 'lobby' && !SkyPointer.getState().hasOrientationEvent) {
-          lobbyMotionWarn.textContent =
-            "Your phone isn't sending motion. You can still watch the big screen.";
-          lobbyMotionWarn.classList.remove('hidden');
+          renderMotionWarningWithButton(
+            "Your phone isn't sending motion. Tap below or watch the big screen."
+          );
         }
       }, 1500);
     }
@@ -422,7 +454,7 @@
     if (countdownRafId) cancelAnimationFrame(countdownRafId);
     if (drawRafId) cancelAnimationFrame(drawRafId);
 
-    activeRound = payload.round || 1;
+    activeRound = payload.round ?? 1;
     const totalRounds = payload.totalRounds || 3;
     activeShapeId = payload.shapeId;
     activeShapeName = payload.shapeName || String(payload.shapeId || 'shape');
@@ -470,14 +502,19 @@
     const startTs = performance.now();
     const endTs = startTs + countdownMs;
     let calStarted = false;
+    let calFinished = false;
 
     function tickCountdown(now) {
       const rem = Math.max(0, endTs - now);
 
-      // Calibrate on the last 500 ms of countdown
-      if (rem <= 500 && !calStarted) {
+      // P4: Calibrate during 1500 ms .. 400 ms before GO (rejects thumb-tap jolts right at GO)
+      if (rem <= 1500 && rem > 400 && !calStarted) {
         calStarted = true;
         SkyPointer.beginCalibrationWindow();
+      }
+      if (rem <= 400 && calStarted && !calFinished) {
+        calFinished = true;
+        SkyPointer.finishCalibrationWindow();
       }
 
       if (rem > 0) {
@@ -493,10 +530,10 @@
           readyShapeTitle.classList.add('hidden');
           readyDifficultyStars.classList.add('hidden');
         }
-        if (!calStarted) {
-          SkyPointer.beginCalibrationWindow();
+        if (!calFinished) {
+          if (!calStarted) SkyPointer.beginCalibrationWindow();
+          SkyPointer.finishCalibrationWindow();
         }
-        SkyPointer.finishCalibrationWindow();
         beginDrawScreen(durationMs);
       }
     }
@@ -677,7 +714,7 @@
   // Screen 6: Results (on round:results, then round:extras)
   function handleRoundResults(payload) {
     releaseWakeLock();
-    const round = payload.round || activeRound || 1;
+    const round = payload.round ?? activeRound ?? 1;
     activeRound = round;
     const shapeId = payload.shapeId ?? activeShapeId;
     const shapeName = payload.shapeName || activeShapeName || 'shape';
@@ -714,8 +751,6 @@
       valCoverage.textContent = `${covVal}%`;
       barCoverage.style.width = `${Math.max(0, Math.min(100, covVal))}%`;
 
-      // Guess line: "Snowflake recognised your star" if guess.shapeId equals shapeId,
-      // otherwise "Snowflake thinks you drew {guess.label}".
       if (mine.guess && mine.guess.label) {
         const matched =
           String(mine.guess.shapeId) === String(shapeId) ||
@@ -734,7 +769,6 @@
     const totalPts = mine ? (mine.totalPoints ?? roundPts) : 0;
     resPoints.textContent = `+${roundPts} · total ${totalPts}`;
 
-    // Comment & Percentile (may already be in mine.comment or arrive via round:extras)
     resPercentile.classList.add('hidden');
     resPercentile.textContent = '';
 
@@ -744,14 +778,13 @@
       resComment.textContent = 'Snowflake is writing a joke...';
     }
 
-    // Apply any already-received round:extras for this round
     applyExtrasToResultsUI(round, shapeName);
     showScreen('results');
   }
 
   function handleRoundExtras(payload) {
     if (!payload) return;
-    const round = payload.round || activeRound;
+    const round = payload.round ?? activeRound;
     const prev = extrasByRound.get(round) || { comments: {}, percentiles: {} };
 
     if (payload.comments && typeof payload.comments === 'object') {
@@ -861,7 +894,6 @@
     });
 
     socket.on('lobby:update', () => {
-      // If host clicked Play Again (host:again), return phone from final/results to lobby
       if (hasJoinedRoom && (currentScreen === 'final' || currentScreen === 'results')) {
         enterLobby();
       }
