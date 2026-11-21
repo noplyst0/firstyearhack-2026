@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkySketch · Host</title>
+  <link rel="stylesheet" href="/host/host.css">
+  <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/host/host.js"></script>
+  <script async src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" id="qr-library"></script>
+</head>
+<body>
+  <header><strong class="brand">✦ SkySketch</strong><span id="connection" role="status">Connecting…</span></header>
+  <main>
+    <section id="welcome" class="poster">
+      <div><h1>Sky<br><em>Sketch</em></h1>
+        <p>Trace the shape in the air with your phone.</p>
+        <button id="create" disabled>Create room ↗</button>
+      </div>
+      <svg class="art" viewBox="0 0 420 400" aria-hidden="true">
+        <g fill="none" stroke-linejoin="round">
+          <path stroke="#22142d" stroke-width="28" d="M47 295C-2 214 93 97 165 102S209 230 149 197S132 36 268 61"/>
+          <path stroke="#ffabcc" stroke-width="16" d="M47 295C-2 214 93 97 165 102S209 230 149 197S132 36 268 61"/>
+        </g>
+        <g transform="rotate(17 273 193)" stroke="#22142d" stroke-width="7">
+          <rect x="207" y="60" width="139" height="248" rx="22" fill="#22142d"/>
+          <rect x="197" y="52" width="139" height="248" rx="22" fill="#fff5d7"/>
+          <rect x="209" y="78" width="115" height="183" rx="8" fill="#a994ff"/>
+          <path d="m264 115 12 34 36 1-29 23 9 36-28-20-29 20 9-36-29-23 36-1Z" stroke-width="4" fill="#e8ff64"/>
+          <path d="M250 280h34" stroke-linecap="round"/>
+        </g>
+        <path fill="#ffabcc" stroke="#22142d" stroke-width="4" d="m111 294 9 25 25 9-25 9-9 25-9-25-25-9 25-9z"/>
+      </svg>
+    </section>
+    <section id="lobby" hidden>
+      <div class="join card"><div><h2>Room code</h2><strong id="code"></strong>
+        <p>Scan to join or open <a id="phone" href="/"></a></p></div>
+        <div id="qr" hidden aria-label="QR code to open the phone page"></div>
+      </div>
+      <div class="row"><h2>Players <span id="count">0</span></h2><button id="start" disabled>Start game →</button></div>
+      <ul id="players" aria-label="Players in the lobby"></ul><p id="empty">Waiting for players to join…</p>
+    </section>
+    <section id="round" hidden>
+      <div class="row"><h2 id="round-title"></h2><strong id="time" aria-label="Time remaining"></strong></div>
+      <div class="stage"><svg viewBox="-8 -8 116 116" role="img" aria-labelledby="shape-label">
+        <title id="shape-label">Target shape</title><polygon id="target" />
+      </svg></div>
+    </section>
+    <p id="notice" role="status"></p>
+  </main>
+</body>
+</html>
