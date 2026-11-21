@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkySketch · Host</title>
+  <link rel="stylesheet" href="/host/host.css">
+  <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/host/sounds.js"></script>
+  <script defer src="/host/overlay.js"></script>
+  <script defer src="/host/host.js"></script>
+  <script async src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" id="qr-library"></script>
+</head>
+<body>
+  <header><strong class="brand">✦ SkySketch</strong><div class="controls"><span id="health">Checking scorer…</span><span id="connection" role="status">Connecting…</span><button id="mute" aria-pressed="false">Mute</button></div></header>
+  <main>
+    <section id="welcome" class="poster">
+      <div><h1>Sky<br><em>Sketch</em></h1>
+        <p>Trace the shape in the air with your phone.</p>
+        <button id="create" disabled>Create room ↗</button>
+      </div>
+      <svg class="art" viewBox="0 0 420 400" aria-hidden="true">
+        <g fill="none" stroke-linejoin="round">
+          <path stroke="#22142d" stroke-width="28" d="M47 295C-2 214 93 97 165 102S209 230 149 197S132 36 268 61"/>
+          <path stroke="#ffabcc" stroke-width="16" d="M47 295C-2 214 93 97 165 102S209 230 149 197S132 36 268 61"/>
+        </g>
+        <g transform="rotate(17 273 193)" stroke="#22142d" stroke-width="7">
+          <rect x="207" y="60" width="139" height="248" rx="22" fill="#22142d"/>
+          <rect x="197" y="52" width="139" height="248" rx="22" fill="#fff5d7"/>
+          <rect x="209" y="78" width="115" height="183" rx="8" fill="#a994ff"/>
+          <path d="m264 115 12 34 36 1-29 23 9 36-28-20-29 20 9-36-29-23 36-1Z" stroke-width="4" fill="#e8ff64"/>
+          <path d="M250 280h34" stroke-linecap="round"/>
+        </g>
+        <path fill="#ffabcc" stroke="#22142d" stroke-width="4" d="m111 294 9 25 25 9-25 9-9 25-9-25-25-9 25-9z"/>
+      </svg>
+    </section>
+    <section id="lobby" hidden>
+      <div class="join card"><div><h2>Room code</h2><strong id="code"></strong>
+        <p>Scan to join on your phone.</p></div>
+        <div class="ticket"><div id="qr" hidden aria-label="QR code to open the phone page"></div><a id="phone" href="/"></a></div>
+      </div>
+      <div class="row"><h2>Players <span id="count">0</span></h2><div class="controls"><label>Rounds <select id="rounds"><option>3</option><option>5</option></select></label><button id="bots">Add 20 ghosts</button><button id="start" disabled>Start game →</button></div></div>
+      <ul id="players" aria-label="Players in the lobby"></ul><p id="empty">Waiting for players to join…</p>
+    </section>
+    <section id="round" hidden>
+      <div class="row"><h2 id="round-title"></h2><strong id="time" aria-label="Time remaining"></strong></div>
+      <div id="memory" hidden>✦ Memory round · Memorise the shape</div>
+      <div class="stage"><svg viewBox="-8 -8 116 116" role="img" aria-labelledby="shape-label">
+        <title id="shape-label">Target shape</title><path id="target" />
+      </svg></div>
+      <progress id="timer" aria-label="Drawing time remaining" max="1" value="1"></progress>
+      <p id="progress"></p>
+    </section>
+    <section id="judging" class="card judging" hidden>
+      <h2 id="judge-title">Judging drawings…</h2><p id="checks"></p>
+    </section>
+    <section id="results" hidden>
+      <div class="row"><div><h2 id="result-title"></h2><small id="scorer"></small></div><button id="next">Next round →</button></div>
+      <div id="reveal-stage" class="stage">
+        <svg id="overlay" viewBox="-250 -250 500 500" role="img" aria-label="Drawings over the target"></svg>
+        <div id="confetti" aria-hidden="true"></div>
+      </div>
+      <div id="spotlight" class="card"><strong id="performer"></strong><span id="score"></span><p id="quote"></p></div>
+      <div id="rankings" hidden><h2>Round standings</h2><ol id="rank-list"></ol></div>
+      <p id="ghost-summary"></p>
+    </section>
+    <section id="final" hidden>
+      <div class="row"><h2>Final standings</h2><button id="again">Play again ↻</button></div>
+      <div id="podium"></div>
+      <div class="final-grid"><div><h2>Leaderboard</h2><ol id="leaders"></ol></div>
+        <div class="card stats"><h2 id="stats-title">Drawing stats</h2><dl id="stats"></dl></div></div>
+    </section>
+    <p id="notice" role="status"></p>
+  </main>
+</body>
+</html>
