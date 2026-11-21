@@ -110,10 +110,6 @@ const reveal = (() => {
     }
     animation = requestAnimationFrame(frame);
   }
-  function heatColour(h) {
-    const clamped = Math.max(0, Math.min(1, Number(h) || 0));
-    return "hsl(" + Math.round((1 - clamped) * 130) + ", 95%, 58%)";
-  }
   function splitJumps(pts, maxJump = 0.45) {
     if (!Array.isArray(pts) || !pts.length) return [];
     const strokes = [[pts[0]]];
@@ -131,11 +127,10 @@ const reveal = (() => {
     const targetStrokes = Array.isArray(resultData.targetNormStrokes) && resultData.targetNormStrokes.length
       ? resultData.targetNormStrokes.filter(s => Array.isArray(s) && s.length > 1)
       : resultData.targetNorm ? splitJumps(resultData.targetNorm, 0.45) : [];
-    const heat = Array.isArray(viewData?.heat) ? viewData.heat : null;
     const crowdPts = Array.isArray(viewData?.crowd?.path) && viewData.crowd.path.length > 1 ? viewData.crowd.path : null;
     const crowdStrokes = crowdPts ? splitJumps(crowdPts, 0.4) : [];
 
-    // Tightly frame the target + crowd consensus so the shape fills the full screen.
+    // Tightly frame the target + blended crowd drawing so the shape fills the full screen.
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     const includePts = pts => {
       for (const pt of pts) {
@@ -158,43 +153,29 @@ const reveal = (() => {
     const boxSize = span + pad * 2;
     targetSvg.setAttribute("viewBox", `${(cx - boxSize / 2).toFixed(1)} ${(cy - boxSize / 2).toFixed(1)} ${boxSize.toFixed(1)} ${boxSize.toFixed(1)}`);
 
-    const heatWidth = Math.max(12, boxSize * 0.058);
-    const heatHaloWidth = heatWidth + Math.max(6, boxSize * 0.026);
+    const targetWidth = Math.max(12, boxSize * 0.058);
+    const targetHaloWidth = targetWidth + Math.max(6, boxSize * 0.026);
     const crowdHaloWidth = Math.max(11, boxSize * 0.046);
     const crowdWidth = Math.max(6.5, boxSize * 0.027);
 
-    if (heat && heat.length && targetStrokes.length) {
-      const haloD = targetStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
+    if (targetStrokes.length) {
+      const targetD = targetStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
       targetSvg.append(element("path", {
-        d: haloD,
+        d: targetD,
         stroke: "#12081c",
-        "stroke-width": heatHaloWidth,
+        "stroke-width": targetHaloWidth,
         fill: "none",
         "stroke-linejoin": "round",
         "stroke-linecap": "round"
       }));
-      const totalSegs = targetStrokes.reduce((sum, s) => sum + Math.max(0, s.length - 1), 0) || 1;
-      let segIdx = 0;
-      for (const stroke of targetStrokes) {
-        for (let i = 1; i < stroke.length; i++) {
-          const frac = totalSegs === 1 ? 0 : segIdx / (totalSegs - 1);
-          const hIdx = Math.min(heat.length - 1, Math.round(frac * (heat.length - 1)));
-          const seg = element("line", {
-            x1: 100 * stroke[i - 1][0],
-            y1: 100 * stroke[i - 1][1],
-            x2: 100 * stroke[i][0],
-            y2: 100 * stroke[i][1],
-            stroke: heatColour(heat[hIdx]),
-            "stroke-width": heatWidth,
-            "stroke-linecap": "round"
-          });
-          targetSvg.append(seg);
-          segIdx++;
-        }
-      }
-    } else if (targetStrokes.length) {
-      const d = targetStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
-      targetSvg.append(element("path", { d, stroke:"#aaa3b4", "stroke-width":heatWidth * 0.8, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round" }));
+      targetSvg.append(element("path", {
+        d: targetD,
+        stroke: "var(--acid, #e8ff64)",
+        "stroke-width": targetWidth,
+        fill: "none",
+        "stroke-linejoin": "round",
+        "stroke-linecap": "round"
+      }));
     }
 
     if (crowdStrokes.length) {
