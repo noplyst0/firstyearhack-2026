@@ -6,12 +6,14 @@ Every AI reads this first, plus `git log --oneline -20`. Update it in the same c
 TBD (fill in once the challenge is announced)
 
 ## Who owns what (only edit your own folder)
-| Seat | Folder | Branch |
-|---|---|---|
-| Faizan, terminal Claude | backend/ | faizan-backend |
-| Faizan, Antigravity | frontend/ | faizan-frontend |
-| Friend A, Claude | ai/ | friendA-ai |
-| Friend B, Claude | pitch/ | friendB-pitch |
+| Seat | Where it runs | Works in folder | Branch |
+|---|---|---|---|
+| Terminal Claude (Faizan's laptop) | `~/Documents/Hackathons/firstyearhack-2026-backend` | backend/ | faizan-backend |
+| Antigravity (Faizan's laptop) | `~/Documents/Hackathons/firstyearhack-2026-frontend` | frontend/ | faizan-frontend |
+| Claude desktop app (Faizan's laptop) | `~/Documents/Hackathons/firstyearhack-2026-pitch` | pitch/ | faizan-pitch |
+| Asim's Claude (Asim's laptop) | his own clone | ai/ | asim-ai |
+
+The main folder `~/Documents/Hackathons/firstyearhack-2026` stays on `main` and is only used to merge. No AI works in it.
 
 ## Contract (API routes and data shapes)
 TBD. Frontend and backend both build against this.
