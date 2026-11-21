@@ -128,3 +128,24 @@ test('targets score on 256 points built from strokes, attempts stay at 64', () =
   assert.strictEqual(S.targetPoints(byId(1)).length, 256);
   assert.strictEqual(S.processDrawing([circlePts()]).pathStrokes.flat().length, 64);
 });
+
+test('telemetry-aware comments react to guess, coverage, memory, strokes and rank', () => {
+  const canned = require('../canned');
+  const ctx = { shapeId: 4, shapeLabel: 'a star', n: 5 };
+  const base = { valid: true, score: 50, onLine: 50, coverage: 50, guess: { shapeId: 4, label: 'a star' }, rank: 3, nStrokes: 2 };
+  const pool = (k, v) => canned.LINES[k].map((l) => canned.fill(l, v));
+  const inPool = (line, k, v = {}) => assert.ok(pool(k, v).includes(line), `"${line}" not from ${k}`);
+  inPool(canned.forAttempt({ ...base, guess: { shapeId: 12, label: 'a potato' } }, ctx), 'wrongGuess', { shape: 'a star', guess: 'a potato' });
+  inPool(canned.forAttempt({ ...base, onLine: 90, coverage: 28 }, ctx), 'partial', { shape: 'a star', coverage: 28 });
+  inPool(canned.forAttempt({ ...base, onLine: 30, coverage: 80 }, ctx), 'wander', { shape: 'a star' });
+  inPool(canned.forAttempt({ ...base, score: 80 }, { ...ctx, memory: true }), 'memory');
+  inPool(canned.forAttempt({ ...base, nStrokes: 9 }, ctx), 'manyStrokes', { strokes: 9 });
+  inPool(canned.forAttempt({ ...base, rank: 1, score: 85 }, ctx), 'winner');
+  inPool(canned.forAttempt({ ...base, rank: 5 }, ctx), 'last');
+  inPool(canned.forAttempt({ valid: false, missing: true }, ctx), 'missing');
+  // no template is left unfilled, and two players rarely share a line
+  const used = new Set();
+  const lines = Array.from({ length: 4 }, () => canned.forAttempt({ ...base, guess: { shapeId: 12, label: 'a potato' } }, { ...ctx, used }));
+  assert.strictEqual(new Set(lines).size, 4);
+  assert.ok(lines.every((l) => !/[{}]/.test(l)));
+});

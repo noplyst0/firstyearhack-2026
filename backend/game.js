@@ -264,6 +264,9 @@ function createGame(io, opts = {}) {
     if (ranked.length >= 4) featured.push(ranked[ranked.length - 1]);
     const featuredIds = new Set(featured.map((a) => a.playerId));
 
+    const memory = !practice && round === room.rounds;
+    const commentCtx = { shapeId: shape.id, shapeLabel: shape.label || shape.name, memory, practice, n: ranked.length, used: new Set() };
+    const lineFor = (a) => canned.forAttempt({ ...a, score: a.valid ? S.round1(a.accuracy) : 0 }, commentCtx);
     const results = [];
     const order = [
       ...ranked,
@@ -280,7 +283,7 @@ function createGame(io, opts = {}) {
         playerId: p.id, name: p.name, isBot: p.isBot, valid: a.valid, score,
         accuracy: S.round1(a.accuracy), onLine: S.round1(a.onLine), coverage: S.round1(a.coverage),
         rank: a.rank, roundPoints: a.roundPoints, totalPoints: p.total, guess: a.guess,
-        comment: featuredIds.has(p.id) ? null : a.valid ? canned.forScore(score) : canned.invalid(),
+        comment: featuredIds.has(p.id) ? null : lineFor(a),
         pathStrokes: a.pathStrokes || [],
       });
     }
@@ -304,10 +307,10 @@ function createGame(io, opts = {}) {
 
     const advanceMs = resultsDelayMs(realPlayers(room).length, T);
     setTimer(room, 'results', advanceMs, () => next(room));
-    sendExtras(room, { round, shape, featured, ranked, attempts, localPct }).catch((e) => log(`[${room.code}] extras error:`, e.message));
+    sendExtras(room, { round, shape, featured, ranked, attempts, localPct, lineFor }).catch((e) => log(`[${room.code}] extras error:`, e.message));
   }
 
-  async function sendExtras(room, { round, shape, featured, ranked, localPct }) {
+  async function sendExtras(room, { round, shape, featured, ranked, localPct, lineFor }) {
     const started = Date.now();
     const n = ranked.length;
     const items = featured.map((a) => {
@@ -338,7 +341,7 @@ function createGame(io, opts = {}) {
       const a = featured.find((f) => f.attemptId === it.attemptId);
       const ai = aiComments ? names.cleanComment(aiComments[it.attemptId]) : null;
       if (ai) aiCount++;
-      comments[it.playerId] = ai || canned.forScore(S.round1(a.accuracy));
+      comments[it.playerId] = ai || lineFor(a);
     }
     let percentiles = {};
     if (sfPct) {
