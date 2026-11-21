@@ -54,6 +54,7 @@
   const readyCountdown = document.getElementById('ready-countdown');
 
   // Screen 4: Draw
+  const drawPad = document.getElementById('draw-pad') || screens.draw;
   const drawPracticeBanner = document.getElementById('draw-practice-banner');
   const debugDrawCanvas = document.getElementById('debug-draw-canvas');
   const debugDrawCtx = debugDrawCanvas.getContext('2d');
@@ -63,6 +64,7 @@
   const drawDifficultyStars = document.getElementById('draw-difficulty-stars');
   const drawPenTitle = document.getElementById('draw-pen-title');
   const drawPenSub = document.getElementById('draw-pen-sub');
+  const btnDrawDone = document.getElementById('btn-draw-done');
 
   // Screen 5: Judging
   const judgingHeadline = document.getElementById('judging-headline');
@@ -112,6 +114,13 @@
   let isMemoryRound = false;
   let isPracticeRound = false;
   let roundSubmitted = false;
+  let roundStoppedByHost = false;
+  let roundProgress = {
+    round: null,
+    submitted: 0,
+    total: 1,
+    updatedAfterSubmit: false,
+  };
 
   // Store extras by round so round:extras can merge cleanly even if arriving multiple times
   const extrasByRound = new Map();
@@ -216,8 +225,29 @@
     return Boolean(isPracticeRound || SkyPointer.DEBUG_MODE);
   }
 
-  // Bind pointer events for hold-to-draw and ?mouse=1 (passing debugDrawCanvas so ?mouse=1 uses the same square box)
-  SkyPointer.bindPadEvents(screens.draw, lobbyTestBox, debugDrawCanvas);
+  function updateDoneButtonState(st) {
+    if (!btnDrawDone) return;
+    if (roundSubmitted || currentScreen !== 'draw') {
+      btnDrawDone.disabled = true;
+      return;
+    }
+    const state = st || SkyPointer.getState();
+    const hasStroke =
+      Array.isArray(state.strokes) &&
+      state.strokes.some((s) => Array.isArray(s) && s.length > 0);
+    btnDrawDone.disabled = !hasStroke;
+  }
+
+  if (btnDrawDone) {
+    btnDrawDone.addEventListener('click', () => {
+      if (!roundSubmitted && currentScreen === 'draw') {
+        finishAndSubmitDrawing();
+      }
+    });
+  }
+
+  // Bind pointer events for hold-to-draw and ?mouse=1 (passing drawPad and debugDrawCanvas so ?mouse=1 uses the same square box)
+  SkyPointer.bindPadEvents(drawPad, lobbyTestBox, debugDrawCanvas);
 
   SkyPointer.onUpdate((st) => {
     // P5: Update ?debug=1 HUD including e.absolute flag
@@ -228,6 +258,10 @@
     // V3 §1: Show live line during practice round (or ?debug=1); real rounds stay blind
     if (currentScreen === 'draw' && shouldShowLiveLine()) {
       renderDebugDrawCanvas(st);
+    }
+
+    if (currentScreen === 'draw') {
+      updateDoneButtonState(st);
     }
 
     // Update Lobby test dot inside a centred square box (size = min(width, height))
@@ -258,14 +292,15 @@
   SkyPointer.onPenChange((isDown) => {
     if (currentScreen !== 'draw' || roundSubmitted) return;
     if (isDown) {
-      screens.draw.classList.add('pen-held');
+      drawPad.classList.add('pen-held');
       drawPenTitle.textContent = 'DRAWING...';
       drawPenSub.textContent = 'Small, steady wrist movements · Lift your thumb to stop';
     } else {
-      screens.draw.classList.remove('pen-held');
+      drawPad.classList.remove('pen-held');
       drawPenTitle.textContent = 'HOLD TO DRAW';
       drawPenSub.textContent = 'Move your phone to trace the shape';
     }
+    updateDoneButtonState();
   });
 
   // P4: Call SkyPointer.askMotion() on Re-centre tap so refreshed iPhones can re-enable motion in 1 tap
@@ -583,6 +618,14 @@
     activeDifficulty = Number(payload.difficulty) || 1;
     isMemoryRound = Boolean(payload.memory) && !isPracticeRound;
     roundSubmitted = false;
+    roundStoppedByHost = false;
+    roundProgress = {
+      round: activeRound,
+      submitted: 0,
+      total: Math.max(1, roundProgress.total || 1),
+      updatedAfterSubmit: false,
+    };
+    updateDoneButtonState();
 
     const strokes =
       Array.isArray(payload.targetStrokes) && payload.targetStrokes.length > 0
@@ -711,6 +754,7 @@
   // Screen 4: Draw
   function beginDrawScreen(durationMs) {
     showScreen('draw');
+    drawPad.classList.remove('pen-held', 'urgent');
     screens.draw.classList.remove('pen-held', 'urgent');
 
     // V3 §1: Show practice banner and live line ONLY when practice is true (or ?debug=1); real rounds stay blind
@@ -743,12 +787,14 @@
     drawPenSub.textContent = 'Move your phone to trace the shape';
 
     SkyPointer.startDrawPhase();
+    updateDoneButtonState();
 
     const startTs = performance.now();
     const endTs = startTs + durationMs;
     let lastUrgentSec = null;
 
     function tickDraw(now) {
+      if (roundSubmitted) return;
       const rem = Math.max(0, endTs - now);
       const frac = durationMs > 0 ? rem / durationMs : 0;
       const offset = RING_CIRCUMFERENCE * (1 - frac);
@@ -758,7 +804,7 @@
 
       // V3 Item 5: Last-3s vibration & visual urgency pulse
       if (rem > 0 && rem <= 3000) {
-        screens.draw.classList.add('urgent');
+        drawPad.classList.add('urgent');
         if (secsLeft !== lastUrgentSec) {
           lastUrgentSec = secsLeft;
           vibratePhone(35);
@@ -837,16 +883,40 @@
     debugDrawCtx.restore();
   }
 
+  function updateSubmittedStatusText() {
+    let waiting = 0;
+    if (roundProgress && roundProgress.round === activeRound) {
+      const subCount = roundProgress.updatedAfterSubmit
+        ? roundProgress.submitted
+        : Math.min(roundProgress.total, roundProgress.submitted + 1);
+      waiting = Math.max(0, roundProgress.total - subCount);
+    }
+    const waitingLine = `Drawing sent - waiting for ${waiting} others`;
+    if (roundStoppedByHost) {
+      drawPenTitle.textContent = 'Host ended the round';
+      drawPenSub.textContent = waitingLine;
+    } else {
+      drawPenTitle.textContent = 'Drawing sent';
+      drawPenSub.textContent = waitingLine;
+    }
+  }
+
   function finishAndSubmitDrawing() {
     if (roundSubmitted) return;
     roundSubmitted = true;
 
+    if (drawRafId) {
+      cancelAnimationFrame(drawRafId);
+      drawRafId = null;
+    }
+
     const { strokes, points } = SkyPointer.stopDrawPhase();
+    drawPad.classList.remove('pen-held', 'urgent');
     screens.draw.classList.remove('pen-held', 'urgent');
+    updateDoneButtonState();
     vibratePhone([40, 50, 40]);
     drawTimeLeft.textContent = '0s';
-    drawPenTitle.textContent = 'Drawing sent';
-    drawPenSub.textContent = 'Look at the big screen!';
+    updateSubmittedStatusText();
 
     if (socket && roomCode && playerId) {
       socket.emit('player:submit', {
@@ -857,6 +927,35 @@
         points,
       });
     }
+  }
+
+  function handleRoundProgress(payload) {
+    if (!payload) return;
+    if (payload.round != null && payload.round !== activeRound) return;
+    roundProgress = {
+      round: payload.round ?? activeRound,
+      submitted: typeof payload.submitted === 'number' ? payload.submitted : 0,
+      total: typeof payload.total === 'number' && payload.total > 0 ? payload.total : 1,
+      updatedAfterSubmit: roundSubmitted,
+    };
+    if (roundSubmitted && currentScreen === 'draw') {
+      updateSubmittedStatusText();
+    }
+  }
+
+  function handleRoundStop(payload) {
+    if (payload && payload.round != null && payload.round !== activeRound) return;
+    if (roundSubmitted) return;
+    roundStoppedByHost = true;
+    if (countdownRafId) {
+      cancelAnimationFrame(countdownRafId);
+      countdownRafId = null;
+    }
+    if (currentScreen === 'ready') {
+      showScreen('draw');
+    }
+    finishAndSubmitDrawing();
+    drawPenTitle.textContent = 'Host ended the round';
   }
 
   // Screen 5: Judging (on round:judging)
@@ -1162,6 +1261,8 @@
     });
 
     socket.on('round:start', handleRoundStart);
+    socket.on('round:progress', handleRoundProgress);
+    socket.on('round:stop', handleRoundStop);
     socket.on('round:judging', handleRoundJudging);
     socket.on('round:results', handleRoundResults);
     socket.on('round:extras', handleRoundExtras);
