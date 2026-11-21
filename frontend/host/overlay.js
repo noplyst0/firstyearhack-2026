@@ -106,5 +106,60 @@ const reveal = (() => {
     }
     animation = requestAnimationFrame(frame);
   }
-  return { start, stop() { cancelAnimationFrame(animation); } };
+  function heatColour(h) {
+    const clamped = Math.max(0, Math.min(1, Number(h) || 0));
+    return "hsl(" + Math.round((1 - clamped) * 130) + ", 95%, 58%)";
+  }
+  function splitJumps(pts, maxJump = 0.45) {
+    if (!Array.isArray(pts) || !pts.length) return [];
+    const strokes = [[pts[0]]];
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1], cur = pts[i];
+      if (!cur || !prev) continue;
+      if (Math.hypot(cur[0] - prev[0], cur[1] - prev[1]) > maxJump) strokes.push([cur]);
+      else strokes[strokes.length - 1].push(cur);
+    }
+    return strokes;
+  }
+  function renderRoomView(targetSvg, resultData, viewData) {
+    if (!targetSvg || !resultData) return;
+    targetSvg.replaceChildren();
+    const targetStrokes = Array.isArray(resultData.targetNormStrokes) && resultData.targetNormStrokes.length
+      ? resultData.targetNormStrokes.filter(s => Array.isArray(s) && s.length > 1)
+      : resultData.targetNorm ? splitJumps(resultData.targetNorm, 0.45) : [];
+    const heat = Array.isArray(viewData?.heat) ? viewData.heat : null;
+
+    if (heat && heat.length && targetStrokes.length) {
+      const totalSegs = targetStrokes.reduce((sum, s) => sum + Math.max(0, s.length - 1), 0) || 1;
+      let segIdx = 0;
+      for (const stroke of targetStrokes) {
+        for (let i = 1; i < stroke.length; i++) {
+          const frac = totalSegs === 1 ? 0 : segIdx / (totalSegs - 1);
+          const hIdx = Math.min(heat.length - 1, Math.round(frac * (heat.length - 1)));
+          const seg = element("line", {
+            x1: 100 * stroke[i - 1][0],
+            y1: 100 * stroke[i - 1][1],
+            x2: 100 * stroke[i][0],
+            y2: 100 * stroke[i][1],
+            stroke: heatColour(heat[hIdx]),
+            "stroke-width": 10,
+            "stroke-linecap": "round"
+          });
+          targetSvg.append(seg);
+          segIdx++;
+        }
+      }
+    } else if (targetStrokes.length) {
+      const d = targetStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
+      targetSvg.append(element("path", { d, stroke:"#aaa3b4", "stroke-width":7, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round" }));
+    }
+
+    const crowdPts = viewData?.crowd?.path;
+    if (Array.isArray(crowdPts) && crowdPts.length > 1) {
+      const crowdStrokes = splitJumps(crowdPts, 0.4);
+      const d = crowdStrokes.map(s => s.map(([x,y], i) => (i ? "L" : "M") + (100*x) + " " + (100*y)).join(" ")).join(" ");
+      targetSvg.append(element("path", { d, stroke:"#ffffff", "stroke-width":6, fill:"none", "stroke-linejoin":"round", "stroke-linecap":"round" }));
+    }
+  }
+  return { start, renderRoomView, stop() { cancelAnimationFrame(animation); } };
 })();
