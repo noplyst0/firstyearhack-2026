@@ -21,7 +21,7 @@ const timed = async (label, p) => {
   const attempts = Array.from({ length: players }, (_, i) => {
     const raw = fakeAttempt(target.norm, Math.random());
     const d = S.processDrawing(raw);
-    return { attemptId: `${gameId}-1-p${i}`, playerId: `p${i}`, isBot: false, valid: d.valid,
+    return { attemptId: `${gameId}-1-p${i}`, playerId: `p${i}`, playerName: `Player ${i}`, isBot: false, valid: d.valid,
       nRaw: raw.flat().length, nStrokes: 1, durationMs: 10000, submittedAt: t0 + i * 10,
       rawStrokes: raw, pathStrokes: d.pathStrokes };
   });

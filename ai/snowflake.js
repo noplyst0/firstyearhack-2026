@@ -110,18 +110,18 @@ function saveGame({ gameId, code, isTest }) {
   return query('INSERT INTO GAMES (game_id, room_code, is_test) VALUES (?, ?, ?)', [gameId, code, !!isTest]);
 }
 
-// attempts: [{ attemptId, playerId, isBot, valid, nRaw, nStrokes, durationMs, submittedAt, rawStrokes, pathStrokes }]
+// attempts: [{ attemptId, playerId, playerName, isPractice, isBot, valid, nRaw, nStrokes, durationMs, submittedAt, rawStrokes, pathStrokes }]
 // returns [{ attemptId, accuracy, onLine, coverage, score, rank, roundPoints, guess: { shapeId, label, score } }]
 async function saveAndScoreRound({ gameId, round, shapeId, attempts }) {
   if (!attempts.length) return [];
   const attemptRows = attempts.map((a) => [
     a.attemptId, gameId, round, a.playerId, shapeId, !!a.isBot,
     a.nRaw ?? null, a.nStrokes ?? null, a.durationMs ?? null, tsNtz(a.submittedAt),
-    JSON.stringify(a.rawStrokes ?? []),
+    JSON.stringify(a.rawStrokes ?? []), a.playerName ?? null, !!a.isPractice,
   ]);
   await query(
     `INSERT INTO ATTEMPTS (attempt_id, game_id, round, player_id, shape_id, is_bot, n_raw_points, n_strokes,
-       duration_ms, submitted_at, raw_strokes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       duration_ms, submitted_at, raw_strokes, player_name, is_practice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     attemptRows
   );
 
