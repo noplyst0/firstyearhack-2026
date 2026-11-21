@@ -63,7 +63,10 @@
         <title id="shape-label">Target shape</title><path id="target" />
       </svg></div>
       <progress id="timer" aria-label="Drawing time remaining" max="1" value="1"></progress>
-      <p id="progress"></p>
+      <div class="round-footer">
+        <p id="progress" class="round-progress" aria-live="polite"></p>
+        <button id="end-round" type="button">End round now</button>
+      </div>
     </section>
     <section id="judging" class="card judging" hidden>
       <h2 id="judge-title">Judging drawings…</h2><p id="checks"></p>
