@@ -29,23 +29,22 @@
     <!-- Screen 1: Join -->
     <section id="screen-join" class="screen">
       <div class="brand-header">
-        <h1 class="brand-logo">SKYSKETCH</h1>
+        <h1 class="brand-logo">&#10022; Sky<em>Sketch</em></h1>
       </div>
 
-      <!-- Flashlight explanation + beam diagram on Join screen -->
+      <!-- Flashlight explanation + beam diagram matching host/index.html -->
       <div class="flashlight-guide">
-        <svg class="beam-diagram" viewBox="0 0 120 56" width="110" height="52" aria-hidden="true">
-          <defs>
-            <linearGradient id="beamGradJoin" x1="0%" y1="50%" x2="100%" y2="50%">
-              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.7" />
-              <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.06" />
-            </linearGradient>
-          </defs>
-          <rect x="6" y="14" width="16" height="28" rx="3" fill="#121827" stroke="#00f0ff" stroke-width="2" />
-          <circle cx="14" cy="37" r="1.5" fill="#00f0ff" />
-          <polygon points="22,22 96,6 96,50 22,34" fill="url(#beamGradJoin)" />
-          <rect x="96" y="4" width="18" height="48" rx="3" fill="none" stroke="#3b4d7a" stroke-width="2" />
-          <circle cx="105" cy="28" r="6" fill="#00f0ff" />
+        <svg class="beam-diagram" viewBox="0 0 120 56" width="106" height="50" aria-hidden="true">
+          <!-- Beam cone -->
+          <polygon points="24,22 94,8 94,48 24,34" fill="#fff5d7" />
+          <line x1="25" y1="28" x2="90" y2="28" stroke="#22142d" stroke-width="2" stroke-dasharray="4 4" />
+          <!-- Phone silhouette -->
+          <rect x="6" y="13" width="18" height="30" rx="4" fill="#ffabcc" stroke="#22142d" stroke-width="3" />
+          <circle cx="15" cy="38" r="1.5" fill="#22142d" />
+          <!-- Big screen target spot -->
+          <rect x="94" y="5" width="20" height="46" rx="3" fill="#22142d" />
+          <circle cx="104" cy="28" r="6" fill="#e8ff64" />
+          <circle cx="104" cy="28" r="2.5" fill="#ffffff" />
         </svg>
         <p class="flashlight-text">
           Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
@@ -92,7 +91,7 @@
         <p id="join-error" class="error-msg hidden" role="alert"></p>
 
         <button id="btn-join" type="submit" class="btn btn-primary btn-tall">
-          JOIN
+          JOIN &rarr;
         </button>
       </form>
     </section>
@@ -108,18 +107,14 @@
 
       <!-- Flashlight explanation + beam diagram on Lobby screen -->
       <div class="flashlight-guide flashlight-guide-compact">
-        <svg class="beam-diagram" viewBox="0 0 120 56" width="92" height="44" aria-hidden="true">
-          <defs>
-            <linearGradient id="beamGradLobby" x1="0%" y1="50%" x2="100%" y2="50%">
-              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.7" />
-              <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.06" />
-            </linearGradient>
-          </defs>
-          <rect x="6" y="14" width="16" height="28" rx="3" fill="#121827" stroke="#00f0ff" stroke-width="2" />
-          <circle cx="14" cy="37" r="1.5" fill="#00f0ff" />
-          <polygon points="22,22 96,6 96,50 22,34" fill="url(#beamGradLobby)" />
-          <rect x="96" y="4" width="18" height="48" rx="3" fill="none" stroke="#3b4d7a" stroke-width="2" />
-          <circle cx="105" cy="28" r="6" fill="#00f0ff" />
+        <svg class="beam-diagram" viewBox="0 0 120 56" width="90" height="42" aria-hidden="true">
+          <polygon points="24,22 94,8 94,48 24,34" fill="#fff5d7" />
+          <line x1="25" y1="28" x2="90" y2="28" stroke="#22142d" stroke-width="2" stroke-dasharray="4 4" />
+          <rect x="6" y="13" width="18" height="30" rx="4" fill="#ffabcc" stroke="#22142d" stroke-width="3" />
+          <circle cx="15" cy="38" r="1.5" fill="#22142d" />
+          <rect x="94" y="5" width="20" height="46" rx="3" fill="#22142d" />
+          <circle cx="104" cy="28" r="6" fill="#e8ff64" />
+          <circle cx="104" cy="28" r="2.5" fill="#ffffff" />
         </svg>
         <p class="flashlight-text">
           Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
@@ -163,18 +158,14 @@
 
       <!-- Flashlight explanation + beam diagram on Get-ready screen -->
       <div class="flashlight-guide flashlight-guide-compact">
-        <svg class="beam-diagram" viewBox="0 0 120 56" width="92" height="44" aria-hidden="true">
-          <defs>
-            <linearGradient id="beamGradReady" x1="0%" y1="50%" x2="100%" y2="50%">
-              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.7" />
-              <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.06" />
-            </linearGradient>
-          </defs>
-          <rect x="6" y="14" width="16" height="28" rx="3" fill="#121827" stroke="#00f0ff" stroke-width="2" />
-          <circle cx="14" cy="37" r="1.5" fill="#00f0ff" />
-          <polygon points="22,22 96,6 96,50 22,34" fill="url(#beamGradReady)" />
-          <rect x="96" y="4" width="18" height="48" rx="3" fill="none" stroke="#3b4d7a" stroke-width="2" />
-          <circle cx="105" cy="28" r="6" fill="#00f0ff" />
+        <svg class="beam-diagram" viewBox="0 0 120 56" width="90" height="42" aria-hidden="true">
+          <polygon points="24,22 94,8 94,48 24,34" fill="#fff5d7" />
+          <line x1="25" y1="28" x2="90" y2="28" stroke="#22142d" stroke-width="2" stroke-dasharray="4 4" />
+          <rect x="6" y="13" width="18" height="30" rx="4" fill="#ffabcc" stroke="#22142d" stroke-width="3" />
+          <circle cx="15" cy="38" r="1.5" fill="#22142d" />
+          <rect x="94" y="5" width="20" height="46" rx="3" fill="#22142d" />
+          <circle cx="104" cy="28" r="6" fill="#e8ff64" />
+          <circle cx="104" cy="28" r="2.5" fill="#ffffff" />
         </svg>
         <p class="flashlight-text">
           Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.

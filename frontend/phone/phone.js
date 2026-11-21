@@ -1,4 +1,4 @@
-// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (plan/phone.md + V3 P1-P5 + Practice Round)
+// SkySketch Phone Controller — Screens 1..9 & Socket.IO websocket client (V3 P1-P5 + Practice Round + Host Theme)
 (() => {
   'use strict';
 
@@ -570,10 +570,8 @@
     if (!strokes || strokes.length === 0) return;
 
     ctx.save();
-    ctx.strokeStyle = '#00f0ff';
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 12;
-    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#e8ff64'; // Matches host.css #target (--acid)
+    ctx.lineWidth = 7;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -656,12 +654,12 @@
     const h = debugDrawCanvas.height;
     debugDrawCtx.clearRect(0, 0, w, h);
 
-    // Target shape guide (unless memory round)
+    // Target shape guide in --acid (#e8ff64)
     if (!isMemoryRound && activeTargetStrokes.length > 0) {
       debugDrawCtx.save();
-      debugDrawCtx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-      debugDrawCtx.lineWidth = 4;
-      debugDrawCtx.setLineDash([8, 8]);
+      debugDrawCtx.strokeStyle = 'rgba(232, 255, 100, 0.38)';
+      debugDrawCtx.lineWidth = 5;
+      debugDrawCtx.setLineDash([10, 8]);
       for (const s of activeTargetStrokes) {
         if (!Array.isArray(s) || s.length < 2) continue;
         debugDrawCtx.beginPath();
@@ -676,10 +674,10 @@
       debugDrawCtx.restore();
     }
 
-    // Recorded strokes
+    // Recorded player strokes in --pink (#ffabcc)
     debugDrawCtx.save();
-    debugDrawCtx.strokeStyle = '#00f0ff';
-    debugDrawCtx.lineWidth = 6;
+    debugDrawCtx.strokeStyle = '#ffabcc';
+    debugDrawCtx.lineWidth = 7;
     debugDrawCtx.lineCap = 'round';
     debugDrawCtx.lineJoin = 'round';
     for (const s of st.strokes) {
@@ -697,10 +695,13 @@
 
     // Live cursor dot
     debugDrawCtx.save();
-    debugDrawCtx.fillStyle = st.penDown ? '#00f0ff' : '#f59e0b';
+    debugDrawCtx.fillStyle = st.penDown ? '#ffabcc' : '#e8ff64';
+    debugDrawCtx.strokeStyle = '#ffffff';
+    debugDrawCtx.lineWidth = 3;
     debugDrawCtx.beginPath();
     debugDrawCtx.arc(st.sx * w, st.sy * h, 10, 0, Math.PI * 2);
     debugDrawCtx.fill();
+    debugDrawCtx.stroke();
     debugDrawCtx.restore();
   }
 
