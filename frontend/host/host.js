@@ -3,7 +3,9 @@ const testGame = new URLSearchParams(location.search).get("test") === "1";
 const storageKey = testGame ? "sky-test-host" : "sky-host";
 const socket = window.io?.({ transports: ["websocket"] });
 let room = sessionStorage.getItem(storageKey) || "";
-let phase = "welcome", players = [], currentRound = 0, totalRounds = 3;
+let phase = "welcome", players = [], currentRound = 0;
+let totalRounds = Number(sessionStorage.getItem(storageKey + "-rounds")) || 3;
+let replayRequested = false;
 let timer, startTimeout, snowflake = false;
 
 function screen(active) {
@@ -117,6 +119,7 @@ function startRound(data) {
   screen("round");
   currentRound = round;
   totalRounds = data.totalRounds || totalRounds;
+  sessionStorage.setItem(storageKey + "-rounds", totalRounds);
   const name = data.shapeName || data.shapeId;
   const stars = "★".repeat(Math.max(0, Math.min(5, Number(data.difficulty) || 0)));
   byId("round-title").textContent = ["Round " + round + " of " + totalRounds, name, stars].filter(Boolean).join(" · ");
@@ -171,7 +174,11 @@ socket?.on("round:judging", ({ round, distanceChecks }) => {
   tick();
 });
 socket?.on("lobby:update", ({ players }) => {
-  if (phase === "final") screen("lobby");
+  if (phase === "final" && replayRequested) {
+    replayRequested = false;
+    sessionStorage.removeItem(storageKey + "-clock");
+    screen("lobby");
+  }
   roster(players);
 });
 socket?.on("connect", () => {
@@ -259,7 +266,11 @@ socket?.on("round:results", data => {
     byId("score").textContent = p && !p.valid ? "No drawing" : "";
     byId("quote").textContent = p ? quoteFor(p) : "";
   }, () => {
-    if (!data.winner) byId("performer").textContent = "No winner this round";
+    if (!data.winner) {
+      featured = null;
+      byId("performer").textContent = "No winner this round";
+      byId("score").textContent = byId("quote").textContent = "";
+    }
     byId("rankings").hidden = false;
     byId("results").classList.add("revealed");
     showStandings();
@@ -273,10 +284,15 @@ socket?.on("round:extras", data => {
   if (!byId("rankings").hidden) showStandings();
 });
 byId("next").onclick = () => send("host:next");
-byId("again").onclick = () => { sounds.unlock(); send("host:again"); };
+byId("again").onclick = () => {
+  sounds.unlock();
+  replayRequested = true;
+  send("host:again");
+};
 
 socket?.on("game:end", ({ leaderboard, stats = {} }) => {
   screen("final");
+  replayRequested = false;
   const people = leaderboard.filter(p => !p.isBot);
   function placing(p,i) {
     const row = document.createElement("li");

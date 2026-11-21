@@ -48,11 +48,11 @@ select { padding:.25em; font-weight:900; border:2px solid; }
 @keyframes pop { from { transform:scale(.85); } }
 #memory { background:var(--pink); padding:.5em; font-weight:900; text-align:center; font-size:clamp(1.3rem,2.2vw,3rem); }
 #timer { display:block; width:100%; height:1.2rem; margin-top:1rem; accent-color:#6742c7; }
-.poof { opacity:0; transition:opacity .16s; }
+.poof { opacity:0; filter:blur(5px); transition:opacity .16s, filter .16s; }
 .judging { background:var(--lilac); padding:8vh 4vw; text-align:center; }
 #reveal-stage { position:relative; overflow:hidden; }
 #overlay { width:100%; height:44vh; }
-#overlay text { font:800 14px system-ui; stroke:var(--ink); stroke-width:3px; paint-order:stroke; }
+#overlay text { font:800 19px system-ui; stroke:var(--ink); stroke-width:4px; paint-order:stroke; }
 #spotlight { margin:1em 0; padding:1em 2vw; background:var(--lilac); }
 #performer,#score { font-size:clamp(1.6rem,3.2vw,4.5rem); overflow-wrap:anywhere; }
 #score { margin-left:.4em; font-variant-numeric:tabular-nums; }
