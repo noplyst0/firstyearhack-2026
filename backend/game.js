@@ -95,8 +95,9 @@ function createGame(io, opts = {}) {
 
   function touch(room) { room.lastActivity = Date.now(); }
 
-  function createRoom(socket, isTest) {
-    const code = newCode();
+  function createRoom(socket, isTest, wantCode) {
+    // after a server restart the big screen asks for its old code back, so the QR it shows keeps working
+    const code = (typeof wantCode === 'string' && /^[A-Z]{4}$/.test(wantCode) && !rooms.has(wantCode)) ? wantCode : newCode();
     const room = {
       code, isTest, gameId: newGameId(isTest), hostSocketId: socket.id, state: 'LOBBY',
       players: new Map(), rounds: 3, round: 0, plan: [], subs: new Map(), timers: {},
@@ -536,7 +537,7 @@ function createGame(io, opts = {}) {
         resend(room, socket);
         return;
       }
-      room = createRoom(socket, !!data.test);
+      room = createRoom(socket, !!data.test, room ? null : data.code);
       socket.join(room.code);
       socket.data = { role: 'host', code: room.code };
       log(`[${room.code}] created ${room.isTest ? '(test) ' : ''}game ${room.gameId}`);
