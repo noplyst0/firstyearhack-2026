@@ -245,6 +245,40 @@ function showStandings() {
   byId("rank-list").replaceChildren(...rows);
   if (featured) byId("quote").textContent = quoteFor(featured);
 }
+function guessInfo(p, res = result) {
+  if (!p?.valid || !p?.guess?.label) return null;
+  const matched = String(p.guess.shapeId) === String(res?.shapeId);
+  const sf = res?.scorer === "snowflake";
+  const text = matched
+    ? (sf ? "❄ Snowflake recognised your " : "✓ Recognised as ") + (res?.shapeName || p.guess.label)
+    : (sf ? "❄ Snowflake thinks you drew " : "Looks like ") + p.guess.label;
+  return { text, matched };
+}
+function updateSpotlightGuess(p) {
+  const pill = byId("guess-pill");
+  if (!pill) return;
+  const info = guessInfo(p);
+  if (!info) {
+    pill.hidden = true;
+    pill.textContent = "";
+    pill.classList.remove("matched");
+    return;
+  }
+  pill.textContent = info.text;
+  pill.classList.toggle("matched", info.matched);
+  pill.hidden = false;
+}
+function formatBestEver(v) {
+  if (v == null) return null;
+  if (typeof v === "object") {
+    if (v.score == null || !Number.isFinite(Number(v.score))) return null;
+    const parts = [percentage(v.score)];
+    if (v.name) parts.push(v.name);
+    if (v.shape) parts.push("(" + v.shape + ")");
+    return parts.join(" · ").replace(" · (", " (");
+  }
+  return Number.isFinite(Number(v)) ? percentage(v) : null;
+}
 socket?.on("round:results", data => {
   screen("drawing-reveal");
   currentRound = data.round;
@@ -254,6 +288,7 @@ socket?.on("round:results", data => {
   featured = null;
   byId("spotlight").classList.remove("winner");
   byId("spotlight").hidden = true;
+  updateSpotlightGuess(null);
   const clock = JSON.parse(sessionStorage.getItem(storageKey + "-clock") || "null");
   const stars = clock?.code === room && clock.round === data.round ? clock.stars : "";
   byId("result-title").textContent = ["Round " + data.round, data.shapeName, stars].filter(Boolean).join(" · ");
@@ -265,16 +300,19 @@ socket?.on("round:results", data => {
   byId("ghost-summary").textContent = ghosts.length ? ghosts.length + " ghosts from earlier today · Best ghost " + percentage(Math.max(...ghosts.map(p => p.score))) : "";
   reveal.start(data, (p, count, won) => {
     featured = p;
-    byId("spotlight").hidden = Boolean(p?.valid && !won);
-    byId("spotlight").classList.toggle("winner",won);
+    const isPendingWinner = Boolean(p && data.winner && p.playerId === data.winner.playerId && !won);
+    byId("spotlight").hidden = isPendingWinner;
+    byId("spotlight").classList.toggle("winner", won);
     byId("performer").textContent = p ? (won ? "★ WINNER  " : "") + p.name : count + " drawings";
     byId("score").textContent = won ? percentage(p.score) : p && !p.valid ? "No drawing" : "";
-    byId("quote").textContent = p ? quoteFor(p) : "";
+    updateSpotlightGuess(isPendingWinner ? null : p);
+    byId("quote").textContent = p && !isPendingWinner ? quoteFor(p) : "";
   }, () => {
     if (!data.winner) {
       featured = null;
       byId("performer").textContent = "No winner this round";
       byId("score").textContent = byId("quote").textContent = "";
+      updateSpotlightGuess(null);
     }
     screen("results");
     showStandings();
@@ -284,7 +322,7 @@ socket?.on("round:extras", data => {
   if (!["drawing-reveal","results"].includes(phase) || data.round !== currentRound) return;
   Object.assign(comments, data.comments);
   Object.assign(percentiles, data.percentiles);
-  if (featured) byId("quote").textContent = quoteFor(featured);
+  if (featured && !byId("spotlight").hidden) byId("quote").textContent = quoteFor(featured);
   if (phase === "results") showStandings();
 });
 byId("next").onclick = () => send("host:next");
@@ -315,7 +353,7 @@ socket?.on("game:end", ({ leaderboard, stats = {} }) => {
   const values = [
     [local ? "Drawings" : "Drawings today", stats.totalAttempts],
     [local ? "Games" : "Games today", stats.totalGames],
-    [local ? "Best score" : "Best ever", stats.bestEver == null ? null : percentage(stats.bestEver)],
+    [local ? "Best score" : "Best ever", formatBestEver(stats.bestEver)],
     ["Hardest shape", stats.hardestShape], ["Most common accidental shape", stats.commonWrongGuess],
     ...(stats.avgByShape || []).map(s => [s.shape + " average", percentage(s.avg)])
   ];

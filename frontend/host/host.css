@@ -63,9 +63,11 @@ body.in-reveal { overflow:hidden; }
 #reveal-stage { position:absolute; inset:0; overflow:hidden; border:0; border-radius:0; box-shadow:none; }
 #overlay { width:100%; height:100%; }
 #overlay text { font:900 22px system-ui; stroke:var(--ink); stroke-width:5px; paint-order:stroke; font-variant-numeric:tabular-nums; }
-#spotlight { position:absolute; bottom:3%; left:50%; transform:translateX(-50%); width:max-content; max-width:92%; text-align:center; padding:.6em 2vw; background:var(--lilac); }
+#spotlight { position:absolute; bottom:2.5%; left:50%; transform:translateX(-50%); width:max-content; max-width:92%; text-align:center; padding:.6em 2vw; background:var(--lilac); }
 #performer,#score { font-size:clamp(1.6rem,3.2vw,4.5rem); overflow-wrap:anywhere; }
 #score { margin-left:.4em; font-variant-numeric:tabular-nums; }
+.guess-pill { display:inline-block; margin:.35em auto 0; padding:.22em .8em; border:3px solid var(--ink); border-radius:999px; background:var(--pink); color:var(--ink); font:900 clamp(1.1rem,2vw,2.3rem)/1.2 system-ui,sans-serif; box-shadow:4px 4px var(--ink); }
+.guess-pill.matched { background:var(--acid); }
 #quote { margin:.25em 0 0; }
 #quote:empty { display:none; }
 #spotlight.winner { background:#ffdc68; }
