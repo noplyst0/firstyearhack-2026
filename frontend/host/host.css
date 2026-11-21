@@ -119,8 +119,22 @@ meter { display:block; width:100%; height:.8em; }
 .place .pts { font-family:monospace; font-size:clamp(1rem,1.7vw,2rem); }
 .final-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; transition:opacity .4s ease; }
 #leaders { display:grid; gap:.5em; }
-.stats { background:white; padding:1.25em; }
-dl { display:grid; grid-template-columns:1fr auto; gap:.7em; font:700 clamp(1rem,1.65vw,2rem) system-ui; }
+.stats { background:white; padding:1.25em; display:grid; gap:1rem; }
+.stats-awards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr)); gap:.7rem; }
+.stats-awards:empty, .stats-shapes:empty { display:none; }
+.award-chip { border:3px solid var(--ink); border-radius:14px; padding:.6em .8em; box-shadow:4px 4px var(--ink); display:grid; gap:.2em; background:var(--paper); }
+.award-chip small { font:800 clamp(.8rem,1.1vw,1.1rem)/1.2 system-ui,sans-serif; text-transform:uppercase; letter-spacing:.04em; opacity:.85; }
+.award-chip strong { font:900 clamp(1.05rem,1.6vw,1.8rem)/1.2 system-ui,sans-serif; overflow-wrap:anywhere; }
+.award-chip.award-gold { background:#ffdc68; }
+.award-chip.award-acid { background:var(--acid); }
+.award-chip.award-lilac { background:var(--lilac); }
+.award-chip.award-pink { background:var(--pink); }
+.stats-shapes { display:grid; gap:.55rem; }
+.shape-bar-row { display:grid; gap:.2rem; font:800 clamp(.95rem,1.35vw,1.45rem)/1.25 system-ui,sans-serif; }
+.shape-bar-head { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; }
+.shape-bar-head .hardest-tag { font-size:.8em; background:var(--pink); border:2px solid var(--ink); border-radius:999px; padding:.05em .45em; margin-left:.4em; }
+.shape-bar-row meter { height:.75em; }
+dl { display:grid; grid-template-columns:1fr auto; gap:.55em; margin:0; font:700 clamp(1rem,1.5vw,1.8rem) system-ui; }
 dd { margin:0; text-align:right; }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition:none !important; } }
 @media(max-width:650px) {

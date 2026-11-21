@@ -544,6 +544,78 @@ function runKahootPodium(people) {
   });
 }
 
+function makeAwardChip(label, value, tone) {
+  const chip = document.createElement("div");
+  chip.className = "award-chip " + tone;
+  chip.append(textNode("small", label), textNode("strong", value));
+  return chip;
+}
+function formatConfusion(c) {
+  if (!c || !c.shape || !c.label) return null;
+  const pct = c.pct != null && Number.isFinite(Number(c.pct)) ? Math.round(Number(c.pct)) + "% of " : "";
+  const plural = /s$/i.test(c.shape) ? c.shape : c.shape + "s";
+  return pct + plural + " looked like " + c.label;
+}
+function renderAdvancedStats(stats = {}) {
+  const local = stats.source === "local" || (!stats.source && !snowflake);
+  byId("stats-title").textContent = local ? "This game" : "❄ Snowflake analytics";
+
+  const awards = [];
+  const bestText = formatBestEver(stats.bestEver);
+  if (bestText) awards.push(makeAwardChip(local ? "🏆 Best drawing" : "🏆 Best ever", bestText, "award-gold"));
+
+  if (stats.steadiest && stats.steadiest.name) {
+    const tremor = stats.steadiest.tremor != null && Number.isFinite(Number(stats.steadiest.tremor))
+      ? " · tremor " + Number(stats.steadiest.tremor).toFixed(2)
+      : "";
+    awards.push(makeAwardChip("🩺 Steadiest hands", stats.steadiest.name + tremor, "award-acid"));
+  }
+  if (stats.mostImproved && stats.mostImproved.name && Number.isFinite(Number(stats.mostImproved.gain))) {
+    const gain = Number(stats.mostImproved.gain);
+    const sign = gain >= 0 ? "+" : "";
+    awards.push(makeAwardChip("📈 Most improved", stats.mostImproved.name + " (" + sign + gain.toFixed(1) + "%)", "award-lilac"));
+  }
+  const confText = formatConfusion(stats.confusion);
+  if (confText) {
+    awards.push(makeAwardChip("❄ Top confusion", confText, "award-pink"));
+  } else if (stats.commonWrongGuess) {
+    awards.push(makeAwardChip("❄ Most accidental shape", stats.commonWrongGuess, "award-pink"));
+  }
+  byId("stats-awards").replaceChildren(...awards);
+
+  const shapeList = Array.isArray(stats.perShape) && stats.perShape.length
+    ? stats.perShape
+    : Array.isArray(stats.avgByShape) ? stats.avgByShape : [];
+  const shapeRows = shapeList.filter(s => s && s.shape && Number.isFinite(Number(s.avg))).map(s => {
+    const wrap = document.createElement("div");
+    wrap.className = "shape-bar-row";
+    const head = document.createElement("div");
+    head.className = "shape-bar-head";
+    const left = document.createElement("span");
+    left.textContent = s.shape + (s.n != null ? " (" + s.n + ")" : "");
+    if (stats.hardestShape && String(s.shape).toLowerCase() === String(stats.hardestShape).toLowerCase()) {
+      const tag = textNode("span", "Hardest");
+      tag.className = "hardest-tag";
+      left.append(tag);
+    }
+    head.append(left, textNode("strong", percentage(s.avg)));
+    const bar = document.createElement("meter");
+    bar.max = 100;
+    bar.value = Math.max(0, Math.min(100, Number(s.avg)));
+    wrap.append(head, bar);
+    return wrap;
+  });
+  byId("stats-shapes").replaceChildren(...shapeRows);
+
+  const values = [
+    [local ? "Drawings" : "Drawings today", stats.totalAttempts != null ? Number(stats.totalAttempts).toLocaleString() : null],
+    [local ? "Games" : "Games today", stats.totalGames != null ? Number(stats.totalGames).toLocaleString() : null],
+    ["Hardest shape", stats.hardestShape],
+  ];
+  if (!bestText) values.push([local ? "Best score" : "Best ever", "—"]);
+  byId("stats").replaceChildren(...values.flatMap(([label, value]) => [textNode("dt", label), textNode("dd", value ?? "—")]));
+}
+
 socket?.on("game:end", ({ leaderboard, stats = {} }) => {
   screen("final");
   replayRequested = false;
@@ -555,14 +627,5 @@ socket?.on("game:end", ({ leaderboard, stats = {} }) => {
   }
   byId("leaders").replaceChildren(...people.map(placing));
   runKahootPodium(people);
-  const local = stats.source === "local" || (!stats.source && !snowflake);
-  byId("stats-title").textContent = local ? "This game" : "Snowflake stats";
-  const values = [
-    [local ? "Drawings" : "Drawings today", stats.totalAttempts],
-    [local ? "Games" : "Games today", stats.totalGames],
-    [local ? "Best score" : "Best ever", formatBestEver(stats.bestEver)],
-    ["Hardest shape", stats.hardestShape], ["Most common accidental shape", stats.commonWrongGuess],
-    ...(stats.avgByShape || []).map(s => [s.shape + " average", percentage(s.avg)])
-  ];
-  byId("stats").replaceChildren(...values.flatMap(([label,value]) => [textNode("dt",label),textNode("dd",value ?? "—")]));
+  renderAdvancedStats(stats);
 });
