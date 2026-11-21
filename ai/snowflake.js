@@ -222,14 +222,21 @@ async function gameStats({ gameId = null } = {}) {
   };
 }
 
-// roomView({ gameId, round }) -> { heat: [256 numbers 0..1, 1 = room missed most], crowd: { path: [[x,y] x256], score },
+const splitStrokes = (rows) => {
+  const out = [];
+  for (const r of rows) (out[Number(r.STROKE) || 0] ||= []).push([r.CX, r.CY]);
+  return out.filter(Boolean);
+};
+
+// roomView({ gameId, round }) -> { heat: [256 numbers 0..1, 1 = room missed most],
+//   crowd: { path: [[x,y] x256], strokes: [[[x,y]...]...] (same points split per target stroke), score },
 //   alone: room average score } or null when the round has no real drawings. Points are normalised (like targetNorm).
 async function roomView({ gameId, round }) {
   const rows = await query(SQL.roomView, [gameId, round, gameId, round]);
   if (!rows.length) return null;
   return {
     heat: rows.map((r) => (r.HEAT == null ? 0 : Number(r.HEAT))),
-    crowd: { path: rows.map((r) => [r.CX, r.CY]), score: rows[0].CROWD_SCORE },
+    crowd: { path: rows.map((r) => [r.CX, r.CY]), strokes: splitStrokes(rows), score: rows[0].CROWD_SCORE },
     alone: rows[0].ALONE,
   };
 }

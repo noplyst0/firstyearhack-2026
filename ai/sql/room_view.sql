@@ -9,7 +9,7 @@ WITH att AS (
   WHERE a.game_id = ? AND a.round = ? AND NOT a.is_bot),
 shape AS (SELECT ANY_VALUE(shape_id) AS shape_id, ANY_VALUE(attempt_id) AS any_attempt FROM att),
 tp AS (
-  SELECT t.idx, t.x, t.y FROM TARGET_POINTS t JOIN shape s ON t.shape_id = s.shape_id),
+  SELECT t.idx, t.x, t.y, COALESCE(t.stroke, 0) AS stroke FROM TARGET_POINTS t JOIN shape s ON t.shape_id = s.shape_id),
 pairs AS (
   SELECT att.attempt_id, tp.idx, att.x, att.y, SQRT(SQUARE(att.x - tp.x) + SQUARE(att.y - tp.y)) AS d
   FROM att CROSS JOIN tp),
@@ -31,7 +31,7 @@ alone AS (
   SELECT AVG(s.final_score) AS alone
   FROM SCORES s JOIN ATTEMPTS a ON a.attempt_id = s.attempt_id
   WHERE a.game_id = ? AND a.round = ? AND NOT a.is_bot)
-SELECT p.idx, p.miss / NULLIF(MAX(p.miss) OVER (), 0) AS heat, p.cx, p.cy,
+SELECT p.idx, tp.stroke, p.miss / NULLIF(MAX(p.miss) OVER (), 0) AS heat, p.cx, p.cy,
        ROUND(crowd.crowd_score, 1) AS crowd_score, ROUND(alone.alone, 1) AS alone
-FROM per_idx p CROSS JOIN crowd CROSS JOIN alone
+FROM per_idx p JOIN tp ON tp.idx = p.idx CROSS JOIN crowd CROSS JOIN alone
 ORDER BY p.idx;

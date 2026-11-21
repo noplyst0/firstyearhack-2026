@@ -10,7 +10,7 @@ const { fakeAttempt } = require(path.join(B, 'ghosts.js'));
 const shapes = require('../shapes.json');
 
 const players = Number(process.argv[2] || 25);
-const ROUNDS = [[0, 1, true], [1, 1, false], [2, 2, false], [3, 4, false]]; // [round, shapeId, practice]
+const ROUNDS = [[0, 1, true], [1, 1, false], [2, 2, false], [3, 6, false]]; // [round, shapeId, practice]
 const timed = async (label, p) => {
   const t = Date.now(); const r = await p; console.log(`${label}: ${Date.now() - t} ms`); return r;
 };
@@ -37,7 +37,7 @@ const show = (v) => console.log('  ' + JSON.stringify(v).slice(0, 400));
       console.log(`  ${rows.length} rows, top ${rows.find((r) => r.rank === 1)?.accuracy.toFixed(1)}, points ${[...new Set(rows.map((r) => r.roundPoints))].join('/')}`);
     }
 
-    const pct = await timed('percentiles (round 3)', sf.percentiles({ shapeId: 4, gameId, round: 3 }));
+    const pct = await timed('percentiles (round 3)', sf.percentiles({ shapeId: 6, gameId, round: 3 }));
     show(`${Object.keys(pct).length} rows, e.g. ${JSON.stringify(Object.entries(pct)[0])}`);
 
     const ghosts = await timed('ghostPool', sf.ghostPool({ shapeId: 1, count: 5 }));
@@ -45,7 +45,7 @@ const show = (v) => console.log('  ' + JSON.stringify(v).slice(0, 400));
 
     if (sf.roomView) {
       const rv = await timed('roomView (round 3)', sf.roomView({ gameId, round: 3 }));
-      show(rv && { heat: rv.heat?.length, heatMax: rv.heat && Math.max(...rv.heat), crowdPoints: rv.crowd?.path?.length, crowdScore: rv.crowd?.score, alone: rv.alone });
+      show(rv && { heat: rv.heat?.length, heatMax: rv.heat && Math.max(...rv.heat), crowdPoints: rv.crowd?.path?.length, crowdStrokes: rv.crowd?.strokes?.length, crowdScore: rv.crowd?.score, alone: rv.alone });
     }
 
     show(await timed('gameStats (this game)', sf.gameStats({ gameId })));

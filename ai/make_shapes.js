@@ -37,15 +37,40 @@ function star() {
   return poly(v, true);
 }
 
+// Snowflake: 3 crossed axes (3 strokes) + a V-shaped branch near each of the 6 tips (6 strokes) = 9 strokes
+function snowflakeShape() {
+  const c = 0.5, R = 0.4, at = (r, deg) => [c + r * Math.cos((deg * Math.PI) / 180), c + r * Math.sin((deg * Math.PI) / 180)];
+  const strokes = [90, 30, 150].map((a) => [at(R, a + 180), at(R, a)]);
+  for (let k = 0; k < 6; k++) {
+    const a = -90 + 60 * k, base = at(0.27, a), len = 0.11;
+    const side = (sgn) => [base[0] + len * Math.cos(((a + sgn * 45) * Math.PI) / 180), base[1] + len * Math.sin(((a + sgn * 45) * Math.PI) / 180)];
+    strokes.push([side(-1), base, side(1)]);
+  }
+  return strokes;
+}
+
+// Smiley: face circle, two small eye circles, smile arc = 4 strokes
+function smileyShape() {
+  const circ = (cx, cy, r, n) => Array.from({ length: n }, (_, i) => {
+    const t = (TAU * i) / (n - 1); return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+  });
+  const mouth = Array.from({ length: 120 }, (_, i) => {
+    const t = ((25 + (130 * i) / 119) * Math.PI) / 180; return [0.5 + 0.24 * Math.cos(t), 0.5 + 0.24 * Math.sin(t)];
+  });
+  return [circ(0.5, 0.5, 0.4, RAW), circ(0.36, 0.38, 0.045, 60), circ(0.64, 0.38, 0.045, 60), mouth];
+}
+
 const ellipse = (rx, ry) => closed((t) => [0.5 + rx * Math.cos(t), 0.5 + ry * Math.sin(t)]);
 
-// [id, name, label, difficulty, raw points]
+// [id, name, label, difficulty, raw points (one stroke) or { strokes } (multi-stroke)]
 const DEFS = [
   [1, 'circle', 'a circle', 1, ellipse(0.4, 0.4)],
   [2, 'triangle', 'a triangle', 2, poly([[0.5, 0.12], [0.88, 0.78], [0.12, 0.78]], true)],
   [3, 'square', 'a square', 2, poly([[0.15, 0.15], [0.85, 0.15], [0.85, 0.85], [0.15, 0.85]], true)],
   [4, 'star', 'a star', 3, star()],
   [5, 'heart', 'a heart', 3, heart()],
+  [6, 'snowflake', 'a snowflake', 4, { strokes: snowflakeShape() }],
+  [7, 'smiley', 'a smiley face', 4, { strokes: smileyShape() }],
   [10, 'egg', 'an egg', 0, ellipse(0.3, 0.4)],
   [11, 'pancake', 'a pancake', 0, ellipse(0.42, 0.14)],
   [12, 'potato', 'a potato', 0, closed((t) => {
@@ -66,15 +91,16 @@ const DEFS = [
 
 const r = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
 
-const shapes = DEFS.map(([id, name, label, difficulty, raw]) => {
-  for (const [x, y] of raw) if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) throw new Error(`${name} leaves 0..1: ${x},${y}`);
-  const strokes = [raw.map(([x, y]) => [r(x, 4), r(y, 4)])];
+const shapes = DEFS.map(([id, name, label, difficulty, def]) => {
+  const rawStrokes = Array.isArray(def) ? [def] : def.strokes;
+  for (const [x, y] of rawStrokes.flat()) if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) throw new Error(`${name} leaves 0..1: ${x},${y}`);
+  const strokes = rawStrokes.map((st) => st.map(([x, y]) => [r(x, 4), r(y, 4)]));
   const rs = resampleStrokes(strokes);
   const ns = rs && normaliseStrokes(rs);
   if (!ns) throw new Error(`${name}: could not normalise`);
   const norm = ns.flat().map(([x, y]) => [r(x, 5), r(y, 5)]);
   if (norm.length !== 64) throw new Error(`${name}: norm has ${norm.length} points`);
-  return { id, name, label, difficulty, round: id >= 1 && id <= 5, strokes, norm };
+  return { id, name, label, difficulty, round: id >= 1 && id <= 9, strokes, norm };
 }).sort((a, b) => a.id - b.id);
 
 fs.writeFileSync(path.join(__dirname, 'shapes.json'), JSON.stringify(shapes) + '\n');
