@@ -151,9 +151,11 @@ async function saveAndScoreRound({ gameId, round, shapeId, attempts }) {
 }
 
 // items: [{ attemptId, prompt }] -> { attemptId: text }. Up to 4 per statement; larger lists run in parallel chunks.
+// SNOWFLAKE_MODEL empty (AI_COMPLETE is blocked on trial accounts) -> {} at once, backend uses canned lines.
 async function comments(items) {
-  const model = process.env.SNOWFLAKE_MODEL || '';
-  if (!/^[a-z0-9.\-]+$/.test(model)) throw new Error('SNOWFLAKE_MODEL missing or invalid');
+  const model = (process.env.SNOWFLAKE_MODEL || '').trim();
+  if (!model || !items || !items.length) return {};
+  if (!/^[a-z0-9.\-]+$/.test(model)) throw new Error('SNOWFLAKE_MODEL invalid');
   const out = {};
   const chunks = [];
   for (let i = 0; i < items.length; i += 4) chunks.push(items.slice(i, i + 4));
