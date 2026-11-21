@@ -1,5 +1,7 @@
 # FirstYearHack 2026: team plan
 
+**v3 (16:00): read plan/V3.md first. It wins over SHARED.md where they differ.**
+
 Every AI reads this first, then `plan/SHARED.md` and its own seat file in `plan/`, then TASKS.md, then `git log --oneline -20`. Update this file in the same commit when the plan or contract changes. CLAUDE.md and AGENTS.md are copies of this file: change all three together.
 
 ## Plan v2 (21 Nov, 14:20)
