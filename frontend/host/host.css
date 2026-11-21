@@ -71,9 +71,9 @@ body.in-reveal { overflow:hidden; }
 #quote { margin:.25em 0 0; }
 #quote:empty { display:none; }
 #spotlight.winner { background:#ffdc68; }
-#confetti { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
-#confetti i { position:absolute; top:-10%; width:10px; height:18px; animation:fall 1.6s ease-in both; }
-@keyframes fall { to { top:110%; transform:rotate(320deg) translateX(2em); } }
+#confetti, .confetti-layer { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+#confetti i, .confetti-layer i { position:absolute; top:-10%; width:12px; height:20px; animation:fall 1.9s ease-in both; }
+@keyframes fall { to { top:112%; transform:rotate(380deg) translateX(2.5em); } }
 ol { padding:0; list-style:none; }
 #rank-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,26rem),1fr)); gap:1em; align-items:start; }
 #rank-list li, #leaders li { padding:.7em; }
@@ -83,11 +83,22 @@ ol { padding:0; list-style:none; }
 .meters { display:flex; gap:1em; margin:.5em 0; }
 .meters label { flex:1; }
 meter { display:block; width:100%; height:.8em; }
-#podium { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr)); gap:1em; align-items:end; margin:2rem 0; }
-.place { background:var(--lilac); border:4px solid; border-radius:18px; padding:1em; text-align:center; display:grid; gap:.3em; box-shadow:5px 5px var(--ink); font-size:clamp(1.2rem,2.3vw,3rem); overflow-wrap:anywhere; }
-.place:first-child { background:#ffdc68; padding-block:1.6em; }
-.place:nth-child(3) { background:var(--pink); }
-.final-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
+.podium-stage { position:relative; overflow:hidden; background:var(--ink); color:var(--paper); border:4px solid var(--ink); border-radius:20px; box-shadow:8px 8px var(--ink); padding:clamp(1.2rem,3vw,2.5rem); margin:1.5rem 0 2rem; }
+.podium-banner { margin:0 0 1.2rem; text-align:center; font:900 clamp(1.4rem,3vw,3.4rem)/1.1 "Arial Black","Helvetica Neue",Arial,sans-serif; letter-spacing:-.03em; color:var(--acid); min-height:1.2em; }
+.podium-banner.suspense { color:var(--pink); animation:pulse-text .45s ease-in-out infinite alternate; }
+@keyframes pulse-text { from { transform:scale(1); } to { transform:scale(1.06); } }
+#podium { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(.75rem,2vw,1.5rem); align-items:end; min-height:clamp(14rem,30vh,22rem); }
+.place { position:relative; color:var(--ink); background:var(--lilac); border:4px solid var(--ink); border-radius:18px; padding:1em .8em; text-align:center; display:grid; align-content:center; gap:.3em; box-shadow:6px 6px rgba(0,0,0,.45); font-size:clamp(1.1rem,2.2vw,2.8rem); overflow-wrap:anywhere; opacity:0; transform:translateY(55px) scale(.92); transition:opacity .4s ease, transform .5s cubic-bezier(.22,1.35,.36,1); }
+.place.revealed { opacity:1; transform:translateY(0) scale(1); }
+.place.place--1st { grid-column:2; background:#ffdc68; min-height:clamp(13rem,28vh,20rem); padding-block:1.6em; }
+.place.place--2nd { grid-column:1; background:var(--lilac); min-height:clamp(10rem,21vh,15rem); }
+.place.place--3rd { grid-column:3; background:var(--pink); min-height:clamp(8rem,16vh,12rem); }
+.place.place--only { grid-column:1 / -1; max-width:26rem; width:100%; justify-self:center; }
+.place.suspense { opacity:1; transform:translateY(0) scale(1); background:repeating-linear-gradient(45deg,#3a2452,#3a2452 14px,#2c1b40 14px,#2c1b40 28px); color:var(--acid); border-color:var(--acid); animation:shake-box .16s linear infinite; }
+@keyframes shake-box { 0%,100% { transform:translateX(0) rotate(0); } 25% { transform:translateX(-4px) rotate(-1deg); } 75% { transform:translateX(4px) rotate(1deg); } }
+.place .medal { font-size:clamp(1rem,1.6vw,1.8rem); font-weight:900; text-transform:uppercase; letter-spacing:.04em; }
+.place .pts { font-family:monospace; font-size:clamp(1rem,1.7vw,2rem); }
+.final-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; transition:opacity .4s ease; }
 #leaders { display:grid; gap:.5em; }
 .stats { background:white; padding:1.25em; }
 dl { display:grid; grid-template-columns:1fr auto; gap:.7em; font:700 clamp(1rem,1.65vw,2rem) system-ui; }

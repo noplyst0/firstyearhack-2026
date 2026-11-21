@@ -78,9 +78,13 @@
       <p id="ghost-summary"></p>
     </section>
     <section id="final" hidden>
-      <div class="row"><h2>Final standings</h2><button id="again">Play again ↻</button></div>
-      <div id="podium"></div>
-      <div class="final-grid"><div><h2>Leaderboard</h2><ol id="leaders"></ol></div>
+      <div class="row"><h2>Final standings</h2><div class="controls"><button id="skip-podium" hidden>Skip reveal →</button><button id="again">Play again ↻</button></div></div>
+      <div id="podium-stage" class="podium-stage">
+        <div id="final-confetti" class="confetti-layer" aria-hidden="true"></div>
+        <p id="podium-banner" class="podium-banner" aria-live="polite"></p>
+        <div id="podium"></div>
+      </div>
+      <div id="final-grid" class="final-grid"><div><h2>Leaderboard</h2><ol id="leaders"></ol></div>
         <div class="card stats"><h2 id="stats-title">Drawing stats</h2><dl id="stats"></dl></div></div>
     </section>
     <p id="notice" role="status"></p>

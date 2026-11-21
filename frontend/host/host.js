@@ -7,11 +7,17 @@ let phase = "welcome", players = [], currentRound = 0;
 let totalRounds = Number(sessionStorage.getItem(storageKey + "-rounds")) || 3;
 let replayRequested = false;
 let timer, startTimeout, snowflake = false;
+let podiumTimers = [];
+function clearPodiumTimers() {
+  for (const id of podiumTimers) clearTimeout(id);
+  podiumTimers = [];
+}
 
 function screen(active) {
   reveal.stop();
   clearInterval(timer);
   clearTimeout(startTimeout);
+  clearPodiumTimers();
   startTimeout = null;
   phase = active;
   document.body.classList.toggle("in-reveal", active === "drawing-reveal");
@@ -332,6 +338,127 @@ byId("again").onclick = () => {
   send("host:again");
 };
 
+const confettiPalette = ["#6ef3ff","#ff9bbf","#acff83","#bba7ff","#ffab74","#ffd65b","#e8ff64","#fa92fe"];
+function burstConfetti(container, count = 60) {
+  if (!container) return;
+  container.replaceChildren(...Array.from({ length: count }, (_, i) => {
+    const bit = document.createElement("i");
+    bit.style.left = ((i * 29 + 7) % 100) + "%";
+    bit.style.background = confettiPalette[i % confettiPalette.length];
+    bit.style.animationDelay = ((i % 10) * 0.065) + "s";
+    return bit;
+  }));
+}
+function makePodiumCard(p, rank, onlyOne) {
+  const place = document.createElement("div");
+  const cls = rank === 1 ? "place--1st" : rank === 2 ? "place--2nd" : "place--3rd";
+  place.className = "place " + cls + (onlyOne ? " place--only" : "");
+  const medal = textNode("small", rank === 1 ? "👑 ★ Champion" : rank === 2 ? "🥈 2nd place" : "🥉 3rd place");
+  medal.className = "medal";
+  const name = textNode("strong", p.name);
+  const pts = textNode("span", p.total + " pts");
+  pts.className = "pts";
+  place.append(medal, name, pts);
+  return place;
+}
+function runKahootPodium(people) {
+  clearPodiumTimers();
+  const podium = byId("podium");
+  const banner = byId("podium-banner");
+  const confetti = byId("final-confetti");
+  const grid = byId("final-grid");
+  const skipBtn = byId("skip-podium");
+  confetti.replaceChildren();
+  banner.classList.remove("suspense");
+
+  if (!people.length) {
+    podium.replaceChildren();
+    banner.textContent = "Thanks for playing!";
+    grid.hidden = false;
+    skipBtn.hidden = true;
+    return;
+  }
+
+  const onlyOne = people.length === 1;
+  const slots = [];
+  const card1 = makePodiumCard(people[0], 1, onlyOne);
+  const card2 = people[1] ? makePodiumCard(people[1], 2, false) : null;
+  const card3 = people[2] ? makePodiumCard(people[2], 3, false) : null;
+  if (card2) slots.push(card2);
+  slots.push(card1);
+  if (card3) slots.push(card3);
+  podium.replaceChildren(...slots);
+
+  const revealAllNow = () => {
+    clearPodiumTimers();
+    banner.classList.remove("suspense");
+    card1.classList.remove("suspense");
+    card1.replaceChildren(...makePodiumCard(people[0], 1, onlyOne).childNodes);
+    for (const c of slots) c.classList.add("revealed");
+    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
+    grid.hidden = false;
+    skipBtn.hidden = true;
+  };
+  skipBtn.onclick = revealAllNow;
+
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    revealAllNow();
+    return;
+  }
+
+  grid.hidden = true;
+  skipBtn.hidden = false;
+  banner.textContent = "✦ FINAL PODIUM ✦";
+
+  let t = 550;
+  const schedule = (delay, fn) => { podiumTimers.push(setTimeout(fn, delay)); };
+
+  if (card3) {
+    schedule(t, () => {
+      banner.textContent = "🥉 3RD PLACE… " + people[2].name + "!";
+      card3.classList.add("revealed");
+      sounds.play("podium");
+    });
+    t += 1550;
+  }
+  if (card2) {
+    schedule(t, () => {
+      banner.textContent = "🥈 2ND PLACE… " + people[1].name + "!";
+      card2.classList.add("revealed");
+      sounds.play("podium2");
+    });
+    t += 1600;
+  }
+
+  // Drum roll + suspense before revealing #1
+  schedule(t, () => {
+    banner.textContent = "🥁 AND THE CHAMPION IS…";
+    banner.classList.add("suspense");
+    card1.replaceChildren(textNode("small", "★ 1ST PLACE"), textNode("strong", "???"), textNode("span", "…"));
+    card1.classList.add("suspense");
+    sounds.play("drumroll");
+  });
+  t += 1850;
+
+  // Winner burst + confetti
+  schedule(t, () => {
+    banner.classList.remove("suspense");
+    card1.classList.remove("suspense");
+    card1.replaceChildren(...makePodiumCard(people[0], 1, onlyOne).childNodes);
+    card1.classList.add("revealed");
+    banner.textContent = "👑 " + people[0].name.toUpperCase() + " WINS!";
+    sounds.play("fanfare");
+    burstConfetti(confetti, 64);
+  });
+  t += 1100;
+
+  // Show full leaderboard & Snowflake stats panel
+  schedule(t, () => {
+    grid.hidden = false;
+    skipBtn.hidden = true;
+  });
+}
+
 socket?.on("game:end", ({ leaderboard, stats = {} }) => {
   screen("final");
   replayRequested = false;
@@ -342,12 +469,7 @@ socket?.on("game:end", ({ leaderboard, stats = {} }) => {
     return row;
   }
   byId("leaders").replaceChildren(...people.map(placing));
-  byId("podium").replaceChildren(...people.slice(0,3).map((p,i) => {
-    const place = document.createElement("div");
-    place.className = "place";
-    place.append(textNode("small", ["★ Champion","2nd place","3rd place"][i]),textNode("strong",p.name),textNode("span",p.total + " pts"));
-    return place;
-  }));
+  runKahootPodium(people);
   const local = stats.source === "local" || (!stats.source && !snowflake);
   byId("stats-title").textContent = local ? "This game" : "Snowflake stats";
   const values = [
