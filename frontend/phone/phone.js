@@ -259,11 +259,11 @@
     if (isDown) {
       screens.draw.classList.add('pen-held');
       drawPenTitle.textContent = 'DRAWING...';
-      drawPenSub.textContent = 'Move your whole arm · Lift thumb to stop';
+      drawPenSub.textContent = 'Move your whole arm, not just your wrist · Lift it to stop';
     } else {
       screens.draw.classList.remove('pen-held');
       drawPenTitle.textContent = 'HOLD TO DRAW';
-      drawPenSub.textContent = 'Hold thumb down where your flashlight shines';
+      drawPenSub.textContent = 'Aim at the shape and trace it';
     }
   });
 
@@ -675,7 +675,7 @@
     }
 
     drawPenTitle.textContent = 'HOLD TO DRAW';
-    drawPenSub.textContent = 'Hold thumb down where your flashlight shines';
+    drawPenSub.textContent = 'Aim at the shape and trace it';
 
     SkyPointer.startDrawPhase();
 

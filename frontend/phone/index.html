@@ -32,23 +32,36 @@
         <h1 class="brand-logo">&#10022; Sky<em>Sketch</em></h1>
       </div>
 
-      <!-- Flashlight explanation + beam diagram matching host/index.html -->
+      <!-- Laser pointer explanation + pointer & dot diagram matching host/index.html -->
       <div class="flashlight-guide">
-        <svg class="beam-diagram" viewBox="0 0 120 56" width="106" height="50" aria-hidden="true">
-          <!-- Beam cone -->
-          <polygon points="24,22 94,8 94,48 24,34" fill="#fff5d7" />
-          <line x1="25" y1="28" x2="90" y2="28" stroke="#22142d" stroke-width="2" stroke-dasharray="4 4" />
-          <!-- Phone silhouette -->
-          <rect x="6" y="13" width="18" height="30" rx="4" fill="#ffabcc" stroke="#22142d" stroke-width="3" />
-          <circle cx="15" cy="38" r="1.5" fill="#22142d" />
-          <!-- Big screen target spot -->
-          <rect x="94" y="5" width="20" height="46" rx="3" fill="#22142d" />
-          <circle cx="104" cy="28" r="6" fill="#e8ff64" />
-          <circle cx="104" cy="28" r="2.5" fill="#ffffff" />
+        <svg class="beam-diagram" viewBox="0 0 124 60" width="108" height="52" role="img" aria-label="Phone laser pointer aiming at a dot on the screen">
+          <!-- Big screen with stand -->
+          <rect x="86" y="6" width="32" height="42" rx="4" fill="#22142d" />
+          <path d="M102 48v5m-10 1h20" stroke="#22142d" stroke-width="3" stroke-linecap="round" />
+          <!-- Traced shape arc on screen -->
+          <path d="M93 36c2-11 9-16 16-11" fill="none" stroke="#e8ff64" stroke-width="2.5" stroke-linecap="round" />
+          <!-- Laser pointer beam line -->
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#ff476f" stroke-width="6" stroke-linecap="round" opacity="0.3" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#ff2a5f" stroke-width="2.6" stroke-linecap="round" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#fff5d7" stroke-width="0.9" stroke-linecap="round" opacity="0.9" />
+          <!-- Tilted phone pointer -->
+          <g stroke="#22142d" stroke-width="3" transform="rotate(-12 16 32)">
+            <rect x="6" y="12" width="20" height="36" rx="4" fill="#ffabcc" />
+            <path d="M12 17h8" stroke-linecap="round" />
+          </g>
+          <!-- Glowing laser dot -->
+          <circle cx="107" cy="25" r="7.5" fill="#ff476f" opacity="0.35" />
+          <circle cx="107" cy="25" r="4.2" fill="#ff2a5f" />
+          <circle cx="107" cy="25" r="1.8" fill="#fff5d7" />
         </svg>
-        <p class="flashlight-text">
-          Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
-        </p>
+        <div class="flashlight-copy">
+          <p class="flashlight-text">
+            Your phone acts like a laser pointer. Aim it at the screen, hold your thumb down to draw, and lift it to stop.
+          </p>
+          <p class="flashlight-tip">
+            <strong>Tip:</strong> Move your whole arm, not just your wrist.
+          </p>
+        </div>
       </div>
 
       <form id="join-form" class="card join-card" autocomplete="off" novalidate>
@@ -105,24 +118,35 @@
 
       <div id="lobby-motion-warn" class="warn-box hidden" role="alert"></div>
 
-      <!-- Flashlight explanation + beam diagram on Lobby screen -->
+      <!-- Laser pointer explanation + pointer & dot diagram on Lobby screen -->
       <div class="flashlight-guide flashlight-guide-compact">
-        <svg class="beam-diagram" viewBox="0 0 120 56" width="90" height="42" aria-hidden="true">
-          <polygon points="24,22 94,8 94,48 24,34" fill="#fff5d7" />
-          <line x1="25" y1="28" x2="90" y2="28" stroke="#22142d" stroke-width="2" stroke-dasharray="4 4" />
-          <rect x="6" y="13" width="18" height="30" rx="4" fill="#ffabcc" stroke="#22142d" stroke-width="3" />
-          <circle cx="15" cy="38" r="1.5" fill="#22142d" />
-          <rect x="94" y="5" width="20" height="46" rx="3" fill="#22142d" />
-          <circle cx="104" cy="28" r="6" fill="#e8ff64" />
-          <circle cx="104" cy="28" r="2.5" fill="#ffffff" />
+        <svg class="beam-diagram" viewBox="0 0 124 60" width="92" height="44" role="img" aria-label="Phone laser pointer aiming at a dot on the screen">
+          <rect x="86" y="6" width="32" height="42" rx="4" fill="#22142d" />
+          <path d="M102 48v5m-10 1h20" stroke="#22142d" stroke-width="3" stroke-linecap="round" />
+          <path d="M93 36c2-11 9-16 16-11" fill="none" stroke="#e8ff64" stroke-width="2.5" stroke-linecap="round" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#ff476f" stroke-width="6" stroke-linecap="round" opacity="0.3" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#ff2a5f" stroke-width="2.6" stroke-linecap="round" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#fff5d7" stroke-width="0.9" stroke-linecap="round" opacity="0.9" />
+          <g stroke="#22142d" stroke-width="3" transform="rotate(-12 16 32)">
+            <rect x="6" y="12" width="20" height="36" rx="4" fill="#ffabcc" />
+            <path d="M12 17h8" stroke-linecap="round" />
+          </g>
+          <circle cx="107" cy="25" r="7.5" fill="#ff476f" opacity="0.35" />
+          <circle cx="107" cy="25" r="4.2" fill="#ff2a5f" />
+          <circle cx="107" cy="25" r="1.8" fill="#fff5d7" />
         </svg>
-        <p class="flashlight-text">
-          Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
-        </p>
+        <div class="flashlight-copy">
+          <p class="flashlight-text">
+            Your phone acts like a laser pointer. Aim it at the screen, hold your thumb down to draw, and lift it to stop.
+          </p>
+          <p class="flashlight-tip">
+            <strong>Tip:</strong> Move your whole arm, not just your wrist.
+          </p>
+        </div>
       </div>
 
       <div class="card test-card">
-        <p class="test-caption">This is where your flashlight points</p>
+        <p class="test-caption">This dot shows where you're pointing.</p>
         <div id="lobby-test-box" class="test-box">
           <div class="test-crosshair-h"></div>
           <div class="test-crosshair-v"></div>
@@ -156,20 +180,31 @@
         <canvas id="ready-shape-canvas" width="240" height="240"></canvas>
       </div>
 
-      <!-- Flashlight explanation + beam diagram on Get-ready screen -->
+      <!-- Laser pointer explanation + pointer & dot diagram on Get-ready screen -->
       <div class="flashlight-guide flashlight-guide-compact">
-        <svg class="beam-diagram" viewBox="0 0 120 56" width="90" height="42" aria-hidden="true">
-          <polygon points="24,22 94,8 94,48 24,34" fill="#fff5d7" />
-          <line x1="25" y1="28" x2="90" y2="28" stroke="#22142d" stroke-width="2" stroke-dasharray="4 4" />
-          <rect x="6" y="13" width="18" height="30" rx="4" fill="#ffabcc" stroke="#22142d" stroke-width="3" />
-          <circle cx="15" cy="38" r="1.5" fill="#22142d" />
-          <rect x="94" y="5" width="20" height="46" rx="3" fill="#22142d" />
-          <circle cx="104" cy="28" r="6" fill="#e8ff64" />
-          <circle cx="104" cy="28" r="2.5" fill="#ffffff" />
+        <svg class="beam-diagram" viewBox="0 0 124 60" width="92" height="44" role="img" aria-label="Phone laser pointer aiming at a dot on the screen">
+          <rect x="86" y="6" width="32" height="42" rx="4" fill="#22142d" />
+          <path d="M102 48v5m-10 1h20" stroke="#22142d" stroke-width="3" stroke-linecap="round" />
+          <path d="M93 36c2-11 9-16 16-11" fill="none" stroke="#e8ff64" stroke-width="2.5" stroke-linecap="round" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#ff476f" stroke-width="6" stroke-linecap="round" opacity="0.3" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#ff2a5f" stroke-width="2.6" stroke-linecap="round" />
+          <line x1="27" y1="29" x2="107" y2="25" stroke="#fff5d7" stroke-width="0.9" stroke-linecap="round" opacity="0.9" />
+          <g stroke="#22142d" stroke-width="3" transform="rotate(-12 16 32)">
+            <rect x="6" y="12" width="20" height="36" rx="4" fill="#ffabcc" />
+            <path d="M12 17h8" stroke-linecap="round" />
+          </g>
+          <circle cx="107" cy="25" r="7.5" fill="#ff476f" opacity="0.35" />
+          <circle cx="107" cy="25" r="4.2" fill="#ff2a5f" />
+          <circle cx="107" cy="25" r="1.8" fill="#fff5d7" />
         </svg>
-        <p class="flashlight-text">
-          Your phone is a flashlight. Point it at the big screen. Hold your thumb down to draw where it shines. Move your whole arm. Lift your thumb to stop.
-        </p>
+        <div class="flashlight-copy">
+          <p class="flashlight-text">
+            Your phone acts like a laser pointer. Aim it at the screen, hold your thumb down to draw, and lift it to stop.
+          </p>
+          <p class="flashlight-tip">
+            <strong>Tip:</strong> Move your whole arm, not just your wrist.
+          </p>
+        </div>
       </div>
 
       <div class="countdown-box">
@@ -215,7 +250,7 @@
         </div>
 
         <div id="draw-pen-title" class="draw-cta">HOLD TO DRAW</div>
-        <p id="draw-pen-sub" class="draw-sub">Hold thumb down where your flashlight shines</p>
+        <p id="draw-pen-sub" class="draw-sub">Aim at the shape and trace it</p>
       </div>
     </section>
 

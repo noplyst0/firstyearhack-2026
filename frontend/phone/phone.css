@@ -188,7 +188,7 @@ input {
   letter-spacing: 0.06em;
 }
 
-/* Flashlight Guide + Beam Diagram (Matches host .how-to panel) */
+/* Laser Pointer Guide + Pointer & Dot Diagram (Matches host .how-to panel) */
 .flashlight-guide {
   display: flex;
   align-items: center;
@@ -208,11 +208,24 @@ input {
   flex-shrink: 0;
 }
 
+.flashlight-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .flashlight-text {
-  font-size: 0.94rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: var(--ink);
-  line-height: 1.25;
+  line-height: 1.24;
+}
+
+.flashlight-tip {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
 }
 
 /* Cards (Matches host .card) */
